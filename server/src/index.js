@@ -1,8 +1,9 @@
 const app = require("./app");
 const { connectDB } = require("./config/db");
 const { bootstrap } = require("./bootstrap");
-const { PORT, HOST, OVERDUE_SCAN_MINUTES } = require("./config/env");
+const { PORT, HOST, MONGODB_URI, OVERDUE_SCAN_MINUTES } = require("./config/env");
 const { scanOverdue } = require("./services/payouts");
+const { diagnoseConnection } = require("./config/diagnose");
 
 async function start() {
   await connectDB();
@@ -32,8 +33,7 @@ async function start() {
 
 start().catch((e) => {
   console.error("\n  Failed to start:", e.message);
-  if (String(e.message).includes("ECONNREFUSED") || String(e.message).includes("ServerSelection")) {
-    console.error("  MongoDB is not reachable. Start a local mongod, or point MONGODB_URI at Atlas.\n");
-  }
+  const hint = diagnoseConnection(e.message, MONGODB_URI);
+  if (hint) console.error(hint + "\n");
   process.exit(1);
 });
