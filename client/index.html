@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Payment CRM</title>
+    <script>
+      /*
+       * Apply the saved theme BEFORE the first paint.
+       *
+       * React sets this too, but only after it mounts — which is one frame too late:
+       * the page paints light first and then flips, so every load in dark mode starts
+       * with a white flash. Doing it here, synchronously in <head>, means the very
+       * first paint is already the right theme.
+       */
+      (function () {
+        try {
+          var saved = localStorage.getItem("payment-crm-theme");
+          var theme = (saved === "dark" || saved === "light")
+            ? saved
+            : (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+          document.documentElement.setAttribute("data-theme", theme);
+        } catch (e) {
+          document.documentElement.setAttribute("data-theme", "light");
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

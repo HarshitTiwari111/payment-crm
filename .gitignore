@@ -1,0 +1,11 @@
+node_modules/
+
+# local dev-server config: absolute paths to this machine, useless in a clone
+.claude/
+
+dist/
+.env
+.jwtsecret
+.refreshsecret
+*.log
+.DS_Store

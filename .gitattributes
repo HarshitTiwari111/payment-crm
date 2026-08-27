@@ -1,0 +1,4 @@
+# One line ending everywhere. Without this Git rewrites to CRLF on Windows
+# checkouts, and every file shows as fully changed the first time somebody on
+# another OS touches it.
+* text=auto eol=lf
