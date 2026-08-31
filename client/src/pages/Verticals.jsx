@@ -236,6 +236,11 @@ export default function Verticals() {
             <div className="hint">Add a vertical first — a sub-vertical has to live inside one.</div>
           ) : (
             <div className="row">
+              <Field label="Inside vertical" style={{ flex: 1 }}>
+                <select value={sub.vertical} onChange={(e) => setSub({ ...sub, vertical: e.target.value })}>
+                  {verticalOptions.map((v) => <option key={v} value={v}>{v}</option>)}
+                </select>
+              </Field>
               <Field label="Name" style={{ flex: 1 }}>
                 <input
                   autoFocus
@@ -244,11 +249,6 @@ export default function Verticals() {
                   onChange={(e) => setSub({ ...sub, name: e.target.value })}
                   onKeyDown={(e) => { if (e.key === "Enter") addSub(); }}
                 />
-              </Field>
-              <Field label="Inside vertical" style={{ flex: 1 }}>
-                <select value={sub.vertical} onChange={(e) => setSub({ ...sub, vertical: e.target.value })}>
-                  {verticalOptions.map((v) => <option key={v} value={v}>{v}</option>)}
-                </select>
               </Field>
             </div>
           )}
