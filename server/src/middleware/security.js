@@ -17,6 +17,7 @@ const mongoSanitize = require("express-mongo-sanitize");
 const jwt = require("jsonwebtoken");
 const {
   PROD, RATE_WINDOW_MINUTES, RATE_MAX_GENERAL, RATE_MAX_AUTH, RATE_MAX_WRITE, ACCESS_COOKIE,
+  JWT_SECRET,
 } = require("../config/env");
 
 /* ------------------------------------------------------------------ headers */
@@ -85,15 +86,23 @@ const windowMs = RATE_WINDOW_MINUTES * 60 * 1000;
  * Keying purely on IP looks safe and quietly punishes normal work: a whole office
  * behind one NAT shares a single budget, so ten people entering their daily numbers
  * lock each other out while a single attacker on a home line gets the same
- * allowance to themselves. The token is only decoded here, never trusted — a
- * forged one just buckets a request under a different key, which is no worse than
- * the IP fallback.
+ * allowance to themselves.
+ *
+ * The signature is VERIFIED here, not merely decoded. Decoding was enough to read
+ * the id and looked harmless — but the id IS the bucket, so anyone could mint an
+ * unsigned token, change the number on every request and draw a fresh allowance
+ * each time. That did not key the limiter, it switched it off. A forged, tampered
+ * or expired token now falls through to the address, exactly like no token at all.
  */
 function userOrIpKey(req) {
   const raw = req.cookies && req.cookies[ACCESS_COOKIE];
   if (raw) {
-    const claims = jwt.decode(raw);
-    if (claims && claims.id) return `u:${claims.id}`;
+    try {
+      const claims = jwt.verify(raw, JWT_SECRET);
+      if (claims && claims.id) return `u:${claims.id}`;
+    } catch (e) {
+      /* not a token this server issued — fall through to the address */
+    }
   }
   return ipKeyGenerator(req.ip);
 }
