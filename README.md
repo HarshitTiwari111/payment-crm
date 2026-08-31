@@ -102,8 +102,20 @@ restart the server before it.
 ## Production
 
 `npm --prefix client run build` writes `client/dist`, which the API serves itself —
-so a deploy is the one Node process. `JWT_SECRET` and `REFRESH_SECRET` must be set in
-the environment; the server refuses to start in production without them.
+so a deploy is the one Node process.
+
+Three things must be set in the environment, and the server refuses to start without
+them rather than falling back to something weaker:
+
+| | |
+|---|---|
+| `JWT_SECRET`, `REFRESH_SECRET` | generate each with `openssl rand -hex 48` |
+| `ADMIN_PASS` | only checked when there is no admin yet — the dev default is printed above, so seeding the first one with it would publish the password |
+| `NODE_ENV=production` | without it the app still runs, but sends no CSP and no HSTS. It says so at boot when the secrets are set and this is not |
+
+`CLIENT_ORIGIN` is only needed if the client is served from somewhere other than this
+process — it is the list (comma-separated) of origins allowed to call the API with
+credentials. Unset means none, which is right for the single-process deploy above.
 
 ## Layout
 

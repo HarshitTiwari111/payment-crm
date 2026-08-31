@@ -8,13 +8,33 @@ const User = require("./models/User");
 const Vertical = require("./models/Vertical");
 const Subcategory = require("./models/Subcategory");
 const { bumpTo } = require("./models/Counter");
-const { ADMIN_USER, ADMIN_PASS, ADMIN_PASS_FROM_ENV } = require("./config/env");
+const { ADMIN_USER, ADMIN_PASS, ADMIN_PASS_FROM_ENV, PROD } = require("./config/env");
 
 const DEFAULT_VERTICALS = ["Nutra", "iGaming", "CPS", "Pay Per Call", "MetAds"];
 
 async function seedAdmin() {
   const count = await User.countDocuments({ role: "admin" });
   if (count > 0) return;
+
+  /*
+   * Refuse to mint the first admin in production with the built-in password. It is
+   * printed in the README, so an install that never set ADMIN_PASS would come up
+   * with credentials anyone could read — reachable from the internet, unlike the
+   * dev default it was borrowed from.
+   *
+   * Only the seeding path is guarded, not startup: once an admin exists this
+   * function returns above and the variable is never consulted, so an already-live
+   * deployment cannot be knocked over by a restart.
+   */
+  if (PROD && !ADMIN_PASS_FROM_ENV) {
+    console.error("");
+    console.error("  FATAL: no admin exists and ADMIN_PASS is not set.");
+    console.error("  Refusing to create the first admin with the documented default password.");
+    console.error("  Set ADMIN_PASS in the environment and start again.");
+    console.error("");
+    process.exit(1);
+  }
+
   await User.create({
     username: ADMIN_USER.toLowerCase(),
     passwordHash: bcrypt.hashSync(ADMIN_PASS, 12),
