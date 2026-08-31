@@ -3,7 +3,7 @@ const fs = require("fs");
 const express = require("express");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
-const { CLIENT_ORIGIN, PROD, TRUST_PROXY, CLIENT_DIST } = require("./config/env");
+const { CLIENT_ORIGIN, PROD, TRUST_PROXY, CLIENT_DIST, CORS_ORIGINS } = require("./config/env");
 const {
   securityHeaders, forceHttps, sanitizeRequest,
   generalLimiter, authLimiter, writeLimiter,
@@ -24,8 +24,16 @@ app.disable("x-powered-by");
 app.use(forceHttps);
 app.use(securityHeaders());
 
+/*
+ * In production the client is served by this same process, so the browser never
+ * sends an Origin for it and no CORS header is needed at all. A deploy that does
+ * split them apart names the origins in CLIENT_ORIGIN; anything unnamed is refused
+ * rather than reflected back with allow-credentials.
+ */
 app.use(cors({
-  origin: PROD ? true : [CLIENT_ORIGIN, "http://127.0.0.1:5173", "http://localhost:5173"],
+  origin: PROD
+    ? (CORS_ORIGINS.length ? CORS_ORIGINS : false)
+    : [CLIENT_ORIGIN, "http://127.0.0.1:5173", "http://localhost:5173"],
   credentials: true,
 }));
 
@@ -39,6 +47,14 @@ app.get("/api/health", (req, res) => res.json({ ok: true, time: new Date().toISO
 
 /* ---- routes ---- */
 const api = express.Router();
+
+/*
+ * Nothing under /api is cacheable. Every one of these responses is scoped to the
+ * signed-in user — one manager's payouts are not another's — and they carried no
+ * cache directive at all, only an ETag, which leaves the decision to a browser's
+ * heuristics on a shared machine.
+ */
+api.use((req, res, next) => { res.setHeader("Cache-Control", "no-store"); next(); });
 
 // the tightest limit goes on the routes worth guessing at
 api.use("/login", authLimiter);

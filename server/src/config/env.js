@@ -74,6 +74,17 @@ module.exports = {
   REQUIRE_2FA_FOR_ADMIN: process.env.REQUIRE_2FA_FOR_ADMIN === "true",
 
   CLIENT_ORIGIN: process.env.CLIENT_ORIGIN || "http://localhost:5173",
+  /*
+   * Which other origins may call the API with credentials.
+   *
+   * Production served the client from this same process, so nothing cross-origin
+   * was ever needed — yet CORS was configured to reflect whatever Origin arrived
+   * and pair it with allow-credentials, which is the setting that says "any site
+   * on the internet may read this API as the signed-in user". Only SameSite=Lax on
+   * the cookie stood in the way. Now a deploy has to name its origins, and naming
+   * none means none.
+   */
+  CORS_ORIGINS: String(process.env.CLIENT_ORIGIN || "").split(",").map((o) => o.trim()).filter(Boolean),
   ADMIN_USER: process.env.ADMIN_USER || "admin",
   ADMIN_PASS: process.env.ADMIN_PASS || "changeme123",
   ADMIN_PASS_FROM_ENV: !!process.env.ADMIN_PASS,

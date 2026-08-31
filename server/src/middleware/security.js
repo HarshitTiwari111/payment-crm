@@ -67,14 +67,19 @@ function securityHeaders() {
     /*
      * The built client is JS and CSS from this origin, plus the one inline script
      * in index.html, which is admitted by its hash rather than by opening
-     * script-src. Styles need 'unsafe-inline' because React writes inline style
-     * attributes; that does not open a script vector.
+     * script-src.
+     *
+     * Styles are split. React writes 125-odd inline style ATTRIBUTES, which only
+     * style-src-attr has to allow; nothing in the build emits a <style> ELEMENT, so
+     * style-src itself stays closed. Allowing both under one style-src, as this did,
+     * permitted a whole class of injected markup that the app never needed.
      */
     contentSecurityPolicy: PROD ? {
       directives: {
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'", ...inlineScriptHashes()],
-        styleSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'"],
+        styleSrcAttr: ["'unsafe-inline'"],
         imgSrc: ["'self'", "data:"],
         fontSrc: ["'self'", "data:"],
         connectSrc: ["'self'"],
