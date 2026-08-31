@@ -45,12 +45,16 @@ const publicShape = (u) => ({
 });
 
 /*
- * The list. An admin sees deactivated accounts too — they are the ones who restore
- * them; a manager sees only the accounts still in use.
+ * The list, and it is admin-only — which is what the README always claimed, while
+ * the route let any manager read it. Nothing in the client needs it otherwise: the
+ * Users screen is admin-only and the View team picker only ever runs for an admin.
+ * What it hands out is worth closing — every username on the system, and which of
+ * them have no second factor.
+ *
+ * An admin sees deactivated accounts too; they are the ones who restore them.
  */
-router.get("/users", auth, ah(async (req, res) => {
-  const q = req.user.role === "admin" ? {} : { active: true };
-  const rows = await User.find(q).lean();
+router.get("/users", auth, adminOnly, ah(async (req, res) => {
+  const rows = await User.find({}).lean();
   res.json(rows.map(publicShape).sort(sortPeople));
 }));
 
@@ -144,7 +148,7 @@ router.post("/users/:id/password", auth, adminOnly, validate({ body: S.setPasswo
  * Soft delete. Deactivating keeps every payout, transaction and audit line attached
  * to the account, so it can be restored intact; a hard delete would orphan all of it.
  */
-router.delete("/users/:id", auth, adminOnly, ah(async (req, res) => {
+router.delete("/users/:id", auth, adminOnly, validate({ params: S.idParam }), ah(async (req, res) => {
   if (!canManageTarget(req.user, req.params.id)) return res.status(403).json({ error: "forbidden" });
   const r = await User.updateOne(
     { id: Number(req.params.id), role: { $ne: "admin" } },
@@ -156,7 +160,8 @@ router.delete("/users/:id", auth, adminOnly, ah(async (req, res) => {
   res.json({ ok: true, deactivated: r.modifiedCount > 0 });
 }));
 
-router.post("/users/:id/reactivate", auth, adminOnly, ah(async (req, res) => {
+router.post("/users/:id/reactivate", auth, adminOnly, validate({ params: S.idParam }), ah(async (req, res) => {
+  if (!canManageTarget(req.user, req.params.id)) return res.status(403).json({ error: "forbidden" });
   const u = await User.findOne({ id: Number(req.params.id) });
   if (!u) return res.status(404).json({ error: "not_found" });
   u.active = true;
