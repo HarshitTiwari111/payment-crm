@@ -88,24 +88,63 @@ export default function PayoutsList() {
     }
   };
 
-  const remove = (p) => confirm.ask({
-    title: `Delete payout #${p.id}?`,
-    message: `${p.network}${p.campaign ? " · " + p.campaign : ""} · ${money(p.amountExpected, p.currency)} expected.`,
-    detail: "Only a payout with no reconciliations can be deleted. Anything with a ledger is written off instead, so the history survives.",
-    confirmLabel: "Delete payout",
-    onConfirm: async () => {
-      try {
-        await api.del(`/api/payouts/${p.id}`);
-        toast.success(`Payout #${p.id} deleted`);
-        after();
-      } catch (e) {
-        toast.error(
-          e.code === "has_history" ? "This payout has reconciliations" : "Could not delete it",
-          e.code === "has_history" ? "Write it off instead — that keeps the history." : undefined
-        );
-      }
-    },
-  });
+  /*
+   * Delete.
+   *
+   * The ledger is counted before anything is asked, so the dialog can name what
+   * would go rather than saying "are you sure?" about an unknown quantity. That
+   * read is also what decides whether the request carries `confirm` at all — the
+   * server refuses a payout with reconciliations without it, which keeps a stray
+   * DELETE from taking entries with it.
+   *
+   * A carry-forward child is not offered at all: deleting the parent would strand a
+   * payout sitting in a later month with its own ledger.
+   */
+  const remove = async (p) => {
+    const d = await api.get(`/api/payouts/${p.id}`).catch(() => null);
+    const txns = (d && d.txns) || [];
+    const children = (d && d.children) || [];
+    const label = `${p.network}${p.campaign ? " · " + p.campaign : ""} · ${money(p.amountExpected, p.currency)} expected`;
+
+    if (children.length) {
+      toast.error(
+        `#${p.id} carried forward into #${children.map((c) => c.id).join(", #")}`,
+        "Delete that one first, or write this one off instead."
+      );
+      return;
+    }
+
+    const n = txns.length;
+    confirm.ask({
+      title: n ? `Delete #${p.id} and its ${n} reconciliation${n === 1 ? "" : "s"}?` : `Delete payout #${p.id}?`,
+      message: n
+        ? `${label}, with ${money(p.amountReceived, p.currency)} recorded as received against it.`
+        : `${label}.`,
+      detail: n
+        ? "The reconciliations go with it and this cannot be undone. If the money was genuinely never coming, write the payout off instead — that keeps the record."
+        : "Nothing has been reconciled against this one yet.",
+      confirmLabel: n ? "Delete it and the ledger" : "Delete payout",
+      onConfirm: async () => {
+        try {
+          const r = await api.del(`/api/payouts/${p.id}${n ? "?confirm=1" : ""}`);
+          toast.success(
+            `Payout #${p.id} deleted`,
+            r && r.txnsDeleted ? `${r.txnsDeleted} reconciliation${r.txnsDeleted === 1 ? "" : "s"} went with it.` : undefined
+          );
+          after();
+        } catch (e) {
+          if (e.code === "has_children") {
+            toast.error("This payout carried forward into another", "Delete that one first, or write this one off.");
+          } else if (e.code === "has_history") {
+            // the ledger grew between the count and the click
+            toast.error("Its ledger changed just now", "Open it, check what is there, and try again.");
+          } else {
+            toast.error("Could not delete it");
+          }
+        }
+      },
+    });
+  };
 
   if (res === null) return <Loading />;
 
@@ -239,11 +278,16 @@ export default function PayoutsList() {
                             <IconWriteOff size={14} />
                           </button>
                         ) : null}
-                        {!p.amountReceived && !p.amountCut && !p.amountCarried && (
-                          <button className="btn ico danger" title="Delete payout" data-tip="Delete payout" aria-label="Delete payout" onClick={() => remove(p)}>
-                            <IconDelete size={14} />
-                          </button>
-                        )}
+                        {/*
+                          Always offered. It used to appear only on a payout with an
+                          empty ledger, which hid it exactly when someone needed it —
+                          a row entered wrongly has a ledger, and the person looking
+                          for the delete button was looking at a row with no button.
+                          What it does about the ledger is settled in the dialog.
+                        */}
+                        <button className="btn ico danger" title="Delete payout" data-tip="Delete payout" aria-label="Delete payout" onClick={() => remove(p)}>
+                          <IconDelete size={14} />
+                        </button>
                       </span>
                     </td>
                   </tr>

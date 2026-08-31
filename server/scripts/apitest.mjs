@@ -198,6 +198,35 @@ async function main() {
   eq("a second adjustment nets back out", undo.data.payout.amountReceived, 10000);
   eq("and the payout settles again", undo.data.payout.status, "received");
 
+  /*
+   * The same correction stated as the figure it should have been. This is what the
+   * screen sends: asking for the difference is how someone fixing a typo ends up
+   * recording a second payment on top of the first.
+   */
+  const typo = await admin.post("/api/payouts", { network: "AdCombo", vertical: "CPS", earnedMonth: "2026-07", amountExpected: 7500 });
+  await admin.post(`/api/payouts/${typo.data.id}/reconcile`, { amountReceived: 5444 });
+  const typoTxns = await admin.get(`/api/payouts/${typo.data.id}/txns`);
+  const fixed = await admin.post(`/api/payouts/${typo.data.id}/adjust`, {
+    txnId: typoTxns.data[0].id, setReceived: 4000, setDeduction: 0, note: "typed the wrong figure",
+  });
+  eq("a corrected figure lands on the figure, not on top of it", fixed.data.payout.amountReceived, 4000);
+  eq("the correction posted is the difference", fixed.data.txn.amountReceived, -1444);
+  eq("and the original still says what it said", (await admin.get(`/api/payouts/${typo.data.id}/txns`)).data[0].amountReceived, 5444);
+  /*
+   * Correcting the same entry twice. The second correction is measured from what
+   * the entry comes to now, not from the figure first typed into it — otherwise
+   * 5,444 → 4,000 → 3,000 posts −1,444 and then −2,444 and lands on 1,556.
+   */
+  const again = await admin.post(`/api/payouts/${typo.data.id}/adjust`, {
+    txnId: typoTxns.data[0].id, setReceived: 3000, note: "3,000 in the end",
+  });
+  eq("a second correction lands where it says, not where the first one left it", again.data.payout.amountReceived, 3000);
+  eq("and it is measured from the corrected figure", again.data.txn.amountReceived, -1000);
+  const zeroed = await admin.post(`/api/payouts/${typo.data.id}/adjust`, { txnId: typoTxns.data[0].id, setReceived: 0, note: "never arrived" });
+  eq("correcting to zero is allowed, and is not 'no change'", zeroed.data.payout.amountReceived, 0);
+  // put the dataset back: every count below this line is asserted against a fixed total
+  await admin.del(`/api/payouts/${typo.data.id}?confirm=1`);
+
   console.log("\n=== payouts: write-off ===");
   const wo = await admin.post(`/api/payouts/${p3.data.id}/writeoff`, { reason: "network went dark" });
   eq("written off", wo.data.status, "written_off");
@@ -208,9 +237,34 @@ async function main() {
   console.log("\n=== payouts: delete ===");
   const throwaway = await admin.post("/api/payouts", { network: "AdCombo", vertical: "CPS", earnedMonth: "2026-07", amountExpected: 100 });
   eq("a clean payout can be deleted", (await admin.del(`/api/payouts/${throwaway.data.id}`)).status, 200);
-  const withHistory = await admin.del(`/api/payouts/${p1.data.id}`);
-  eq("a payout with a ledger cannot be deleted", withHistory.status, 409);
-  eq("and it says why, in the code the UI reads", withHistory.data.error, "has_history");
+  /*
+   * p1 carried forward earlier, so it is the child that blocks it, not the ledger —
+   * and the two are answered separately now, because only one of them can be talked
+   * past. Deleting it would strand a payout sitting in a later month with its own
+   * entries, so it is refused however plainly the caller asks.
+   */
+  const stranding = await admin.del(`/api/payouts/${p1.data.id}?confirm=1`);
+  eq("a payout that carried forward is refused even when confirmed", stranding.status, 409);
+  eq("and says which case it is", stranding.data.error, "has_children");
+
+  /*
+   * A ledger of its own is a different matter. Write-off used to be the only way
+   * out of one, which is right for money that went bad and wrong for a row entered
+   * by mistake — that one leaves a permanent record of a debt nobody was owed. So
+   * it goes, once the caller says plainly that is what they meant.
+   */
+  const doomed = await admin.post("/api/payouts", { network: "AdCombo", vertical: "CPS", earnedMonth: "2026-07", amountExpected: 900 });
+  await admin.post(`/api/payouts/${doomed.data.id}/reconcile`, { amountReceived: 300 });
+  await admin.post(`/api/payouts/${doomed.data.id}/reconcile`, { amountReceived: 100 });
+  const unqualified = await admin.del(`/api/payouts/${doomed.data.id}`);
+  eq("a payout with a ledger is not deleted by an unqualified request", unqualified.status, 409);
+  eq("and it says why, in the code the UI reads", unqualified.data.error, "has_history");
+  eq("...with the count the dialog is written around", unqualified.data.txns, 2);
+  const confirmed = await admin.del(`/api/payouts/${doomed.data.id}?confirm=1`);
+  eq("a confirmed delete takes the ledger with it", confirmed.status, 200);
+  eq("...and says how much went", confirmed.data.txnsDeleted, 2);
+  eq("the payout is gone", (await admin.get(`/api/payouts/${doomed.data.id}`)).status, 404);
+  eq("and so are its entries", (await admin.get(`/api/payouts/${doomed.data.id}/txns`)).status, 404);
 
   console.log("\n=== dashboard, calendar, reports ===");
   const dash = await admin.get("/api/payouts/summary/2026-08");

@@ -409,10 +409,33 @@ router.delete("/payouts/:id", auth, requireWrite, validate({ params: S.idParam }
   await assertVerticalAllowed(req.scopeUser, p.vertical);
   const txnCount = await PayoutTxn.countDocuments({ payoutId: p.id });
   const childCount = await Payout.countDocuments({ parentId: p.id });
-  if (txnCount || childCount) return res.status(409).json({ error: "has_history", txns: txnCount, children: childCount });
+
+  /*
+   * A carry-forward child is a payout in its own right, sitting in a later month
+   * with its own ledger. Deleting the parent would leave it pointing at nothing, so
+   * that case still refuses outright — delete the child first, deliberately.
+   */
+  if (childCount) return res.status(409).json({ error: "has_children", txns: txnCount, children: childCount });
+
+  /*
+   * Its own reconciliations are a different matter. Write-off was offered as the
+   * only way out of a payout that had any, on the reasoning that history should
+   * survive — but the common case is not a payout that went bad, it is one entered
+   * wrongly, and writing that off leaves a permanent record of money nobody was
+   * ever owed. So it can be deleted, once the caller says plainly that is what they
+   * meant: the count comes back first, and only a request carrying `confirm` goes
+   * through. The audit line records how much ledger went with it.
+   */
+  if (txnCount && String(req.query.confirm || "") !== "1") {
+    return res.status(409).json({ error: "has_history", txns: txnCount, children: 0 });
+  }
+  if (txnCount) await PayoutTxn.deleteMany({ payoutId: p.id });
   await Payout.deleteOne({ id: p.id });
-  await logAudit(req.user, "payout_deleted", null, p.earnedMonth, `#${p.id} ${p.network} · ${p.currency} ${p.amountExpected}`);
-  res.json({ ok: true });
+
+  await logAudit(req.user, "payout_deleted", null, p.earnedMonth,
+    `#${p.id} ${p.network} · ${p.currency} ${p.amountExpected}`
+    + (txnCount ? ` · ${txnCount} reconciliation${txnCount === 1 ? "" : "s"} deleted with it` : ""));
+  res.json({ ok: true, txnsDeleted: txnCount });
 }));
 
 /** Run the overdue sweep now instead of waiting for the timer. */
