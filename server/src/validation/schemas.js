@@ -147,6 +147,13 @@ const adjust = z.object({
   date: optionalDate,
   amountReceived: signedAmount.optional(),
   deduction: signedAmount.optional(),
+  /*
+   * The same correction stated as the figure it should have been, rather than the
+   * difference from what it was — see adjust() for why both exist. Unsigned: these
+   * are totals, and a total received is never below zero.
+   */
+  setReceived: amount.optional(),
+  setDeduction: amount.optional(),
   deductionReason: z.enum(["", "validation", "scrub", "chargeback", "fx", "other"]).optional(),
   carriedForward: signedAmount.optional(),
   carriedToMonth: optionalMonth,

@@ -30,28 +30,63 @@ export default function PayoutDetail({ id, onClose, onChanged, onReconcile }) {
 
   useEffect(() => { load(); }, [load]);
 
+  /*
+   * What an entry currently comes to: what it first said, plus every correction
+   * already posted against it. Corrections are measured from here — both on screen
+   * and on the server — so correcting the same entry twice lands where the second
+   * correction says, rather than counting the first one again.
+   */
+  const netOf = (t, field) => Math.round(
+    (((t[field] || 0) + ((d && d.txns) || [])
+      .filter((x) => x.reversalOf === t.id)
+      .reduce((sum, x) => sum + (x[field] || 0), 0))) * 100
+  ) / 100;
+
+  /* Open the correction with the figures as they stand, so it reads as an edit. */
+  const startAdjust = (t) => {
+    setErr("");
+    setAdjusting({ ...t, netReceived: netOf(t, "amountReceived"), netDeduction: netOf(t, "deduction") });
+    setAdj({
+      amountReceived: String(netOf(t, "amountReceived")),
+      deduction: String(netOf(t, "deduction")),
+      note: "",
+    });
+  };
+
   const postAdjustment = async () => {
     setErr("");
-    const rec = Number(adj.amountReceived) || 0;
-    const ded = Number(adj.deduction) || 0;
-    if (!rec && !ded) { setErr("Enter what should change — amounts can be negative to reverse."); return; }
+    const rec = Number(adj.amountReceived);
+    const ded = Number(adj.deduction);
+    if (!isFinite(rec) || !isFinite(ded) || rec < 0 || ded < 0) {
+      setErr("Enter the figures this entry should have had. Neither can be negative.");
+      return;
+    }
+    if (rec === adjusting.netReceived && ded === adjusting.netDeduction) {
+      setErr("These are the figures this entry already comes to — nothing to correct.");
+      return;
+    }
     try {
+      /*
+       * The corrected totals, not the difference. The server subtracts against the
+       * entry it loads itself, so a screen left open while someone else corrected
+       * the same row cannot post arithmetic based on a stale number.
+       */
       await api.post(`/api/payouts/${id}/adjust`, {
         txnId: adjusting.id,
-        amountReceived: rec,
-        deduction: ded,
-        deductionReason: ded ? "other" : "",
-        note: adj.note || `Adjustment to txn #${adjusting.id}`,
+        setReceived: rec,
+        setDeduction: ded,
+        deductionReason: ded ? (adjusting.deductionReason || "other") : "",
+        note: adj.note || `Correction to txn #${adjusting.id}`,
       });
       const wasId = adjusting.id;
       setAdjusting(null);
       setAdj({ amountReceived: "", deduction: "", note: "" });
       await load();
       onChanged();
-      toast.success(`Adjustment posted against #${wasId}`, "The original entry stays on the ledger — this corrects it.");
+      toast.success(`Entry #${wasId} corrected`, "The original stays on the ledger, with a correction against it.");
     } catch (e) {
-      setErr("Could not post the adjustment.");
-      toast.error("Could not post the adjustment");
+      setErr("Could not post the correction.");
+      toast.error("Could not post the correction");
     }
   };
 
@@ -147,7 +182,7 @@ export default function PayoutDetail({ id, onClose, onChanged, onReconcile }) {
                   <td className="muted" style={{ fontSize: 12 }}>{t.createdByName}</td>
                   <td className="right">
                     {!t.reversalOf && (
-                      <button className="btn sm" onClick={() => setAdjusting(t)}>Adjust</button>
+                      <button className="btn sm" onClick={() => startAdjust(t)}>Correct</button>
                     )}
                   </td>
                 </tr>
@@ -182,27 +217,45 @@ export default function PayoutDetail({ id, onClose, onChanged, onReconcile }) {
 
       {adjusting && (
         <div className="card" style={{ marginTop: 14, borderColor: "var(--accent)" }}>
-          <div className="k">Adjust reconciliation #{adjusting.id}</div>
+          <div className="k">Correct entry #{adjusting.id}</div>
           <div className="hint">
-            Entries are never edited — this posts a new one that corrects the old. Use a negative amount to reverse
-            something that was recorded wrongly (for example −500 received).
+            Type what this entry <b>should have said</b>. The original stays on the ledger and a correction is posted
+            against it, so the totals end up right without the history being rewritten.
           </div>
           <div className="err">{err}</div>
           <div className="row">
-            <Field label="Received adjustment" style={{ flex: 1 }}>
-              <input type="number" step="any" value={adj.amountReceived}
-                onChange={(e) => setAdj({ ...adj, amountReceived: e.target.value })} placeholder="e.g. -500" />
+            <Field label="Received should have been" style={{ flex: 1 }}>
+              <input type="number" step="any" min="0" value={adj.amountReceived}
+                onChange={(e) => setAdj({ ...adj, amountReceived: e.target.value })} />
             </Field>
-            <Field label="Cut adjustment" style={{ flex: 1 }}>
-              <input type="number" step="any" value={adj.deduction}
+            <Field label="Cut should have been" style={{ flex: 1 }}>
+              <input type="number" step="any" min="0" value={adj.deduction}
                 onChange={(e) => setAdj({ ...adj, deduction: e.target.value })} />
             </Field>
           </div>
+
+          {/*
+            The arithmetic, said out loud before it is posted. This is the step people
+            were being asked to do in their heads, and getting it wrong is what turned
+            a correction into a second payment.
+          */}
+          <div className="hint" style={{ marginTop: 2 }}>
+            {(() => {
+              const rec = Number(adj.amountReceived), ded = Number(adj.deduction);
+              const dr = isFinite(rec) ? Math.round((rec - adjusting.netReceived) * 100) / 100 : 0;
+              const dd = isFinite(ded) ? Math.round((ded - adjusting.netDeduction) * 100) / 100 : 0;
+              if (!dr && !dd) return "No change yet.";
+              const bit = (n, what) => (n ? `${n > 0 ? "+" : "−"}${money(Math.abs(n), cur)} ${what}` : null);
+              return "Will post " + [bit(dr, "received"), bit(dd, "cut")].filter(Boolean).join(" and ") + ".";
+            })()}
+          </div>
+
           <Field label="Why">
-            <input value={adj.note} onChange={(e) => setAdj({ ...adj, note: e.target.value })} />
+            <input value={adj.note} onChange={(e) => setAdj({ ...adj, note: e.target.value })}
+              placeholder="e.g. typed the wrong figure" />
           </Field>
           <div className="row">
-            <button className="btn primary" onClick={postAdjustment}>Post adjustment</button>
+            <button className="btn primary" onClick={postAdjustment}>Post correction</button>
             <button className="btn ghost" onClick={() => setAdjusting(null)}>Cancel</button>
           </div>
         </div>

@@ -351,12 +351,42 @@ async function adjust(payoutId, originalTxnId, body, actor) {
       err.code = "txn_not_found";
       throw err;
     }
+    /*
+     * Two ways to say the same thing.
+     *
+     * The ledger only ever stores a difference — that is what lets the original
+     * entry survive a correction instead of being overwritten. But nobody thinks in
+     * differences: someone who typed 5,444 where they meant 4,000 knows the second
+     * number, not the −1,444 between them, and asking for the gap is how a
+     * correction gets entered as a second payment. setReceived / setDeduction are
+     * that second number, and the subtraction happens here rather than in the
+     * browser so a stale screen cannot get the arithmetic wrong.
+     *
+     * The subtraction is against what the entry CURRENTLY comes to, not the figure
+     * first typed into it — the original plus every correction already posted
+     * against it. Correcting 5,444 down to 4,000 and then deciding it should have
+     * been 3,000 has to land on 3,000; measuring the second correction from 5,444
+     * again would post −2,444 on top of the −1,444 and land on 1,556.
+     */
+    const priors = await PayoutTxn.find({ payoutId: payout.id, reversalOf: original.id })
+      .session(session || null).lean();
+    const netOf = (field) => round2(
+      (original[field] || 0) + priors.reduce((sum, t) => sum + (t[field] || 0), 0)
+    );
+
+    const given = (v) => v !== undefined && v !== null && v !== "";
+    const receivedDelta = given(body.setReceived)
+      ? round2(Number(body.setReceived) - netOf("amountReceived")) : undefined;
+    const deductionDelta = given(body.setDeduction)
+      ? round2(Number(body.setDeduction) - netOf("deduction")) : undefined;
+
     const [txn] = await PayoutTxn.create(
       [{
         payoutId: payout.id,
         date: normalizeExpectedDate(body.date) || today(),
-        amountReceived: round2(body.amountReceived),   // may be negative — that is the point
-        deduction: round2(body.deduction),
+        // may be negative — that is the point
+        amountReceived: receivedDelta === undefined ? round2(body.amountReceived) : receivedDelta,
+        deduction: deductionDelta === undefined ? round2(body.deduction) : deductionDelta,
         deductionReason: String(body.deductionReason || "").trim(),
         carriedForward: round2(body.carriedForward),
         carriedToMonth: String(body.carriedToMonth || "").trim(),
