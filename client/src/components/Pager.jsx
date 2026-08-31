@@ -30,6 +30,8 @@ export default function Pager({
   onPage, onLimit,
   perPageOptions = [10, 25, 50, 100],
   noun = "row",
+  // "row" + s is right and "entry" + s is not; anything irregular says so itself
+  plural = noun + "s",
 }) {
   if (!total) return null;
 
@@ -40,7 +42,7 @@ export default function Pager({
   return (
     <div className="pager">
       <div className="info">
-        Showing <b>{first}–{last}</b> of <b>{total}</b> {noun}{total === 1 ? "" : "s"}
+        Showing <b>{first}–{last}</b> of <b>{total}</b> {total === 1 ? noun : plural}
         {pages > 1 ? <> · page <b>{page}</b> of <b>{pages}</b></> : null}
       </div>
 
