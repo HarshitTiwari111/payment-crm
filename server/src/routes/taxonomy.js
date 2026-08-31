@@ -69,7 +69,7 @@ router.post("/subcategories", auth, roles("admin", "manager"), validate({ body: 
   }
 }));
 
-router.delete("/subcategories/:id", auth, roles("admin", "manager"), ah(async (req, res) => {
+router.delete("/subcategories/:id", auth, roles("admin", "manager"), validate({ params: S.idParam }), ah(async (req, res) => {
   await Subcategory.deleteOne({ id: Number(req.params.id) });
   res.json({ ok: true });
 }));

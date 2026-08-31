@@ -175,12 +175,20 @@ const campaign = z.object({
 
 const idParam = z.object({ id: z.coerce.number().int().positive() });
 
+/*
+ * Networks and refresh tokens are keyed by Mongo's own _id rather than the
+ * auto-increment number the rest of the app uses, so they need their own shape.
+ * Handing mongoose a string it cannot cast raised inside the driver and surfaced
+ * as a 500; a 24-character hex check answers it as the bad request it is.
+ */
+const objectIdParam = z.object({ id: z.string().regex(/^[0-9a-fA-F]{24}$/, "Not a valid id.") });
+
 module.exports = {
   login, changePassword, setPassword, totpCode, strongPassword,
   createUser, updateUser,
   verticalName, subcategory,
   createPayout, updatePayout, reconcile, adjust, writeoff,
   network, networkUpdate, campaign,
-  idParam,
+  idParam, objectIdParam,
   z,
 };

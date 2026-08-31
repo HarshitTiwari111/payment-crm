@@ -209,7 +209,7 @@ router.get("/me/sessions", auth, ah(async (req, res) => {
   })));
 }));
 
-router.delete("/me/sessions/:id", auth, ah(async (req, res) => {
+router.delete("/me/sessions/:id", auth, validate({ params: S.objectIdParam }), ah(async (req, res) => {
   await RefreshToken.updateOne(
     { _id: req.params.id, userId: req.user.id, revokedAt: null },
     { $set: { revokedAt: new Date(), replacedBy: "revoked_by_user" } }

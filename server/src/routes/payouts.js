@@ -211,7 +211,7 @@ router.get("/payouts/reports/trend", auth, requireRead, ah(async (req, res) => {
 
 /* --------------------------------------------------------------- one payout */
 
-router.get("/payouts/:id", auth, requireRead, ah(async (req, res) => {
+router.get("/payouts/:id", auth, requireRead, validate({ params: S.idParam }), ah(async (req, res) => {
   const p = await Payout.findOne({ id: Number(req.params.id) }).lean();
   if (!p) return res.status(404).json({ error: "not_found" });
   const allowed = await verticalsInScope(req.scopeUser);
@@ -372,7 +372,7 @@ router.post("/payouts/:id/adjust", auth, requireWrite, validate({ body: S.adjust
   res.json({ payout: shape(out.payout), txn: out.txn });
 }));
 
-router.get("/payouts/:id/txns", auth, requireRead, ah(async (req, res) => {
+router.get("/payouts/:id/txns", auth, requireRead, validate({ params: S.idParam }), ah(async (req, res) => {
   const p = await Payout.findOne({ id: Number(req.params.id) }).lean();
   if (!p) return res.status(404).json({ error: "not_found" });
   await assertVerticalAllowed(req.scopeUser, p.vertical);
@@ -390,7 +390,7 @@ router.post("/payouts/:id/writeoff", auth, requireWrite, validate({ body: S.writ
 }));
 
 /** Undo a write-off — the ledger is untouched, so the status simply re-derives. */
-router.post("/payouts/:id/unwriteoff", auth, requireWrite, ah(async (req, res) => {
+router.post("/payouts/:id/unwriteoff", auth, requireWrite, validate({ params: S.idParam }), ah(async (req, res) => {
   const p = await Payout.findOne({ id: Number(req.params.id) }).lean();
   if (!p) return res.status(404).json({ error: "not_found" });
   await assertVerticalAllowed(req.scopeUser, p.vertical);
@@ -403,7 +403,7 @@ router.post("/payouts/:id/unwriteoff", auth, requireWrite, ah(async (req, res) =
  * Delete. Only when the payout has no transactions and spawned no children —
  * anything with a ledger gets written off instead, so the history survives.
  */
-router.delete("/payouts/:id", auth, requireWrite, ah(async (req, res) => {
+router.delete("/payouts/:id", auth, requireWrite, validate({ params: S.idParam }), ah(async (req, res) => {
   const p = await Payout.findOne({ id: Number(req.params.id) }).lean();
   if (!p) return res.json({ ok: true });
   await assertVerticalAllowed(req.scopeUser, p.vertical);
@@ -434,19 +434,30 @@ router.post("/networks", auth, requireWrite, validate({ body: S.network }), ah(a
   // case-insensitive duplicate check — the whole reason networks are a collection
   const dupe = await Network.findOne({ name: new RegExp(`^${svc.escapeRe(name)}$`, "i") }).lean();
   if (dupe) return res.status(409).json({ error: "exists" });
-  const n = await Network.create({
-    name,
-    netTerms: b.netTerms == null || b.netTerms === "" ? 30 : Number(b.netTerms),
-    defaultCurrency: String(b.defaultCurrency || "USD").trim().toUpperCase(),
-    contact: String(b.contact || "").trim(),
-    note: String(b.note || "").trim(),
-    createdBy: req.user.id, createdByName: req.user.name,
-  });
+  /*
+   * The check above is a read, so two requests can both pass it and only the
+   * unique index decides. That collision is the same answer as the check's —
+   * the name is taken — and it was reaching the client as a 500.
+   */
+  let n;
+  try {
+    n = await Network.create({
+      name,
+      netTerms: b.netTerms == null || b.netTerms === "" ? 30 : Number(b.netTerms),
+      defaultCurrency: String(b.defaultCurrency || "USD").trim().toUpperCase(),
+      contact: String(b.contact || "").trim(),
+      note: String(b.note || "").trim(),
+      createdBy: req.user.id, createdByName: req.user.name,
+    });
+  } catch (e) {
+    if (e && e.code === 11000) return res.status(409).json({ error: "exists" });
+    throw e;
+  }
   await logAudit(req.user, "network_created", null, null, `${name} · net-${n.netTerms} · ${n.defaultCurrency}`);
   res.json(n);
 }));
 
-router.put("/networks/:id", auth, requireWrite, validate({ body: S.networkUpdate }), ah(async (req, res) => {
+router.put("/networks/:id", auth, requireWrite, validate({ body: S.networkUpdate, params: S.objectIdParam }), ah(async (req, res) => {
   const b = req.body || {};
   const set = {};
   if (b.name !== undefined && String(b.name).trim()) set.name = String(b.name).trim();
@@ -462,7 +473,7 @@ router.put("/networks/:id", auth, requireWrite, validate({ body: S.networkUpdate
 }));
 
 /** Removing a network is blocked while payouts still reference it. */
-router.delete("/networks/:id", auth, adminOnly, ah(async (req, res) => {
+router.delete("/networks/:id", auth, adminOnly, validate({ params: S.objectIdParam }), ah(async (req, res) => {
   const n = await Network.findById(req.params.id).lean();
   if (!n) return res.json({ ok: true });
   const used = await Payout.countDocuments({ network: new RegExp(`^${svc.escapeRe(n.name)}$`, "i") });
