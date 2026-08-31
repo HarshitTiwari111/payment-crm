@@ -375,7 +375,7 @@ router.post("/payouts/:id/adjust", auth, requireWrite, validate({ body: S.adjust
 router.get("/payouts/:id/txns", auth, requireRead, ah(async (req, res) => {
   const p = await Payout.findOne({ id: Number(req.params.id) }).lean();
   if (!p) return res.status(404).json({ error: "not_found" });
-  await assertVerticalAllowed(req.scopeUser, p.vertical).catch(() => null);
+  await assertVerticalAllowed(req.scopeUser, p.vertical);
   res.json(await PayoutTxn.find({ payoutId: p.id }).sort({ id: 1 }).lean());
 }));
 
@@ -483,7 +483,7 @@ router.post("/campaigns", auth, requireWrite, validate({ body: S.campaign }), ah
   const name = String(b.name || "").trim();
   const vertical = String(b.vertical || "").trim();
   if (!name) return res.status(400).json({ error: "empty" });
-  await assertVerticalAllowed(req.scopeUser, vertical).catch(() => null);
+  await assertVerticalAllowed(req.scopeUser, vertical);
   try {
     const c = await Campaign.create({ name, vertical, createdBy: req.user.id, createdByName: req.user.name });
     res.json(c);
