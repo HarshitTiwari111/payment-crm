@@ -10,6 +10,9 @@
  *                   smuggled into a query and turn a login check into "any user"
  *   rate limits     bounded requests per IP, tightest on the login route
  */
+const path = require("path");
+const fs = require("fs");
+const crypto = require("crypto");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const { ipKeyGenerator } = require("express-rate-limit");
@@ -17,22 +20,60 @@ const mongoSanitize = require("express-mongo-sanitize");
 const jwt = require("jsonwebtoken");
 const {
   PROD, RATE_WINDOW_MINUTES, RATE_MAX_GENERAL, RATE_MAX_AUTH, RATE_MAX_WRITE, ACCESS_COOKIE,
-  JWT_SECRET,
+  JWT_SECRET, CLIENT_DIST,
 } = require("../config/env");
 
 /* ------------------------------------------------------------------ headers */
 
+/*
+ * The built index.html carries one inline script: it reads the saved theme and sets
+ * it before the first paint, which is the entire reason it is inline rather than in
+ * the bundle. `script-src 'self'` blocks inline scripts, so production served the
+ * page, refused to run that script, and every dark-mode load flashed white and left
+ * a CSP error in the console.
+ *
+ * Hashing whatever is actually on disk keeps the policy strict without pinning a
+ * constant that goes stale the next time that block is edited. No dist — a dev run,
+ * or an API-only deploy — simply yields no hashes.
+ */
+function inlineScriptHashes() {
+  try {
+    const html = fs.readFileSync(path.join(CLIENT_DIST, "index.html"), "utf8");
+    const CLOSE = "</script>";
+    const hashes = [];
+    let at = 0;
+    for (;;) {
+      const open = html.indexOf("<script", at);
+      if (open === -1) break;
+      const tagEnd = html.indexOf(">", open);
+      const close = html.indexOf(CLOSE, tagEnd);
+      if (tagEnd === -1 || close === -1) break;
+      // a script with a src is fetched, not inline, and 'self' already covers it
+      if (!html.slice(open, tagEnd).includes(" src=")) {
+        const body = html.slice(tagEnd + 1, close);
+        const sum = crypto.createHash("sha256").update(body, "utf8").digest("base64");
+        hashes.push("'sha256-" + sum + "'");
+      }
+      at = close + CLOSE.length;
+    }
+    return hashes;
+  } catch (e) {
+    return [];
+  }
+}
+
 function securityHeaders() {
   return helmet({
     /*
-     * The built client is plain JS and CSS from this origin, with no inline
-     * scripts. Styles need 'unsafe-inline' because React writes inline style
+     * The built client is JS and CSS from this origin, plus the one inline script
+     * in index.html, which is admitted by its hash rather than by opening
+     * script-src. Styles need 'unsafe-inline' because React writes inline style
      * attributes; that does not open a script vector.
      */
     contentSecurityPolicy: PROD ? {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'"],
+        scriptSrc: ["'self'", ...inlineScriptHashes()],
         styleSrc: ["'self'", "'unsafe-inline'"],
         imgSrc: ["'self'", "data:"],
         fontSrc: ["'self'", "data:"],

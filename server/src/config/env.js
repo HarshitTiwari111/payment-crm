@@ -11,6 +11,12 @@ require("dotenv").config({ path: path.join(__dirname, "..", "..", ".env") });
 const PROD = process.env.NODE_ENV === "production";
 
 /*
+ * The built client, when there is one. app.js serves it and security.js hashes the
+ * inline script out of its index.html into the CSP, so both need the same path.
+ */
+const CLIENT_DIST = path.join(__dirname, "..", "..", "..", "client", "dist");
+
+/*
  * Secrets.
  *
  * In production these MUST come from the environment — a secret generated on disk
@@ -40,6 +46,7 @@ module.exports = {
   PORT: num(process.env.PORT, 4000),
   HOST: process.env.HOST || (PROD ? "0.0.0.0" : "127.0.0.1"),
   PROD,
+  CLIENT_DIST,
   MONGODB_URI: process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/payment-crm",
 
   /* ---- auth ---- */
@@ -70,6 +77,8 @@ module.exports = {
   ADMIN_USER: process.env.ADMIN_USER || "admin",
   ADMIN_PASS: process.env.ADMIN_PASS || "changeme123",
   ADMIN_PASS_FROM_ENV: !!process.env.ADMIN_PASS,
+  // dev never sets these — it generates them on disk. Both present means a deploy.
+  SECRETS_FROM_ENV: !!(process.env.JWT_SECRET && process.env.REFRESH_SECRET),
   TG_TOKEN: process.env.TELEGRAM_BOT_TOKEN || "",
   TG_CHAT: process.env.TELEGRAM_CHAT_ID || "",
   BUDGET_CAP_PERCENT: num(process.env.BUDGET_CAP_PERCENT, 100),

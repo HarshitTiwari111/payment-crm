@@ -3,7 +3,7 @@ const fs = require("fs");
 const express = require("express");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
-const { CLIENT_ORIGIN, PROD, TRUST_PROXY } = require("./config/env");
+const { CLIENT_ORIGIN, PROD, TRUST_PROXY, CLIENT_DIST } = require("./config/env");
 const {
   securityHeaders, forceHttps, sanitizeRequest,
   generalLimiter, authLimiter, writeLimiter,
@@ -55,7 +55,7 @@ app.use("/api", api);
 app.use("/api", (req, res) => res.status(404).json({ error: "not_found" }));
 
 /* ---- built client (production) ---- */
-const clientDist = path.join(__dirname, "..", "..", "client", "dist");
+const clientDist = CLIENT_DIST;
 if (fs.existsSync(clientDist)) {
   app.use(express.static(clientDist, {
     setHeaders: (res, filePath) => {
