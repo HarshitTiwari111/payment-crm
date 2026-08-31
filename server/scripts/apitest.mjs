@@ -303,6 +303,45 @@ async function main() {
   ok("sessions are listed", Array.isArray((await admin.get("/api/me/sessions")).data));
   ok("login history is recorded", (await admin.get("/api/me/login-history")).data.length > 0);
 
+  console.log("");
+  console.log("=== the log ===");
+  const actv = await admin.get("/api/log/activity?limit=200");
+  eq("an admin can read the activity log", actv.status, 200);
+  ok("everything this run wrote is in it", actv.data.total > 20, `total ${actv.data.total}`);
+  const anEntry = (actv.data.items || [])[0] || {};
+  ok("an entry says who did it", typeof anEntry.actorName === "string" && anEntry.actorName.length > 0);
+  ok("...and says what, in words", typeof anEntry.label === "string" && anEntry.label !== anEntry.action);
+  ok("newest first", new Date(actv.data.items[0].ts) >= new Date(actv.data.items[1].ts));
+
+  const created = await admin.get("/api/log/activity?action=payout_added");
+  ok("filtering by action narrows it", created.data.total > 0 && created.data.total < actv.data.total);
+  ok("...to only that action", created.data.items.every((r) => r.action === "payout_added"));
+  eq("a future date range is empty, not everything", (await admin.get("/api/log/activity?from=2099-01-01")).data.total, 0);
+
+  const signins = await admin.get("/api/log/signins?limit=200");
+  eq("sign-ins are readable too", signins.status, 200);
+  ok("including the ones that failed", signins.data.items.some((r) => !r.success));
+  ok("...with a reason", signins.data.items.filter((r) => !r.success).every((r) => r.reason));
+
+  const meta = await admin.get("/api/log/meta");
+  ok("the filters are offered only actions that exist", meta.data.actions.length > 0
+    && meta.data.actions.every((a) => a.value && a.label));
+
+  /*
+   * A manager is refused all three. Read-only or not, it is a record of everyone —
+   * when each colleague last signed in, and from which address.
+   */
+  eq("a manager cannot read the activity log", (await priya4.get("/api/log/activity")).status, 403);
+  eq("...nor the sign-ins", (await priya4.get("/api/log/signins")).status, 403);
+  eq("...nor the filter lists", (await priya4.get("/api/log/meta")).status, 403);
+  ok("but they can see their own sign-ins", Array.isArray((await priya4.get("/api/log/mine")).data));
+
+  eq("signed out, the log is not readable at all", (await session().get("/api/log/activity")).status, 401);
+
+  /* Query values go straight into a mongo filter, so nonsense is a 400, not a 500. */
+  eq("a non-numeric actorId is a bad request", (await admin.get("/api/log/activity?actorId=abc")).status, 400);
+  eq("...and so is an unparseable date", (await admin.get("/api/log/activity?from=notadate")).status, 400);
+
   console.log("\n=== logout ===");
   eq("logout succeeds", (await priya4.post("/api/logout")).status, 200);
   eq("and the session is dead", (await priya4.get("/api/me")).status, 401);

@@ -17,6 +17,7 @@ Two, and only two.
 | Payouts, calendar, reports, networks | yes | yes, inside their verticals |
 | Delete a network / a vertical | yes | no |
 | Users screen | yes | not shown, and blocked server-side |
+| Log | yes | not shown, and blocked server-side — their own sign-ins, yes |
 
 A manager's verticals *are* their permissions, which is why only an admin edits
 accounts — granting yourself a vertical would leave the scoping decorative. Every
@@ -43,6 +44,7 @@ too: while viewing as Priya, a new payout can only be filed in Priya's verticals
 5. **Network** — the partners who pay, and their default net terms.
 6. **Users** — accounts and their verticals (admin only).
 7. **Vertical** — verticals and sub-verticals.
+8. **Log** — who signed in, and who changed what (admin only).
 
 ## Running it
 
@@ -76,10 +78,10 @@ password `changeme123`. Change it from the avatar menu before anything else.
 npm --prefix server test
 ```
 
-144 checks driven over real HTTP with real cookies — sessions and refresh, the role
+163 checks driven over real HTTP with real cookies — sessions and refresh, the role
 gates, vertical scoping, the payout ledger (partial payment, cut, carry-forward,
 adjustment, write-off), every report, the View team lens and the attempts to abuse
-it.
+it, and the log — including a manager being refused it.
 
 ```bash
 npm --prefix server run test:spec
@@ -121,13 +123,13 @@ credentials. Unset means none, which is right for the single-process deploy abov
 
 ```
 server/src
-  routes/      auth · users · taxonomy · payouts
+  routes/      auth · users · taxonomy · payouts · log
   services/    auth (sessions, 2FA) · payouts (ledger) · receivables (reporting)
   models/      User · Payout · PayoutTxn · Network · Campaign · Vertical · …
   middleware/  auth (who) · security (headers, limits) · validate (zod)
 client/src
   pages/payments/   the five receivables screens
-  pages/            Users · Verticals
+  pages/            Users · Verticals · Log
   components/       Layout, Login, and the shared pieces
   context/          session + the Vertical / Month selectors
 ```

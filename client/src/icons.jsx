@@ -9,6 +9,7 @@
 import React from "react";
 import {
   FiBarChart2, FiDollarSign, FiCalendar, FiTrendingUp, FiGlobe, FiUser, FiGrid, FiSettings,
+  FiActivity,
 } from "react-icons/fi";
 import {
   FiPlus, FiEdit2, FiTrash2, FiX, FiCheck, FiAlertTriangle, FiInfo,
@@ -27,6 +28,7 @@ export const TAB_ICONS = {
   networks: FiGlobe,
   users: FiUser,
   verticals: FiGrid,
+  log: FiActivity,
 };
 
 /** Render a tab's icon by id. */

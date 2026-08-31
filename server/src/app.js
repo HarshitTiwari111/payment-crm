@@ -66,6 +66,7 @@ api.use(require("./routes/auth"));
 api.use(require("./routes/users").router);
 api.use(require("./routes/taxonomy"));
 api.use(require("./routes/payouts"));
+api.use(require("./routes/log"));
 app.use("/api", api);
 
 app.use("/api", (req, res) => res.status(404).json({ error: "not_found" }));

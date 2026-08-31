@@ -14,6 +14,7 @@ import PayReports from "./pages/payments/PayReports";
 import Networks from "./pages/payments/Networks";
 import Users from "./pages/Users";
 import Verticals from "./pages/Verticals";
+import Log from "./pages/Log";
 
 const PAGES = {
   dashboard: PayDashboard,
@@ -23,6 +24,7 @@ const PAGES = {
   networks: Networks,
   users: Users,
   verticals: Verticals,
+  log: Log,
 };
 
 /** The title block every screen opens with, drawn from the same list as the sidebar. */
@@ -91,10 +93,11 @@ export default function App() {
    * and the ones whose tables read left-aligned, numbers included — read row by row
    * ("what does Network X owe, and when") rather than scanned down a column, so a
    * left edge is easier to follow across ten columns. The digits stay tabular, so
-   * they still line up. Users and Vertical are ordinary company-wide lists: default
-   * alignment, and no lens.
+   * they still line up. Users, Vertical and Log are ordinary company-wide lists:
+   * default alignment, and no lens — narrowing an audit trail to one person's
+   * verticals would leave a record that still looks complete.
    */
-  const scoped = !["users", "verticals"].includes(tab);
+  const scoped = !["users", "verticals", "log"].includes(tab);
 
   return (
     <Layout tab={tab} setTab={setTab}>

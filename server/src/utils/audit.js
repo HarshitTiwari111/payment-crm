@@ -39,6 +39,41 @@ const TG_LABELS = {
   twofactor_disabled: "⚠️ Two-factor turned OFF",
 };
 
+/*
+ * The same actions again, without the emoji.
+ *
+ * TG_LABELS is written for a chat window, where an icon is the fastest way to tell
+ * one line from the next. The Log screen has columns for that, and an emoji in a
+ * table cell only fights the alignment — so the wording is shared and the decoration
+ * is not. Anything missing here falls back to the raw action name, which is ugly but
+ * never wrong.
+ */
+const ACTION_LABELS = {
+  user_created: "Account created",
+  user_updated: "Account updated",
+  user_deactivated: "Account deactivated",
+  user_reactivated: "Account restored",
+  password_reset: "Password reset by an admin",
+  vertical_proposed: "Vertical added",
+  vertical_rejected: "Vertical removed",
+  subcategory_created: "Sub-vertical created",
+  network_created: "Network added",
+  network_updated: "Network updated",
+  network_deleted: "Network removed",
+  payout_added: "Payout created",
+  payout_updated: "Payout updated",
+  payout_deleted: "Payout deleted",
+  payout_reconciled: "Payment reconciled",
+  payout_adjusted: "Reconciliation adjusted",
+  payout_carry_created: "Carry-forward payout created",
+  payout_writeoff: "Payout written off",
+  payout_overdue: "Payout went overdue",
+  password_changed: "Password changed",
+  sessions_revoked: "Signed out of all devices",
+  twofactor_enabled: "Two-factor turned on",
+  twofactor_disabled: "Two-factor turned OFF",
+};
+
 function notifyTelegram(text) {
   if (!TG_TOKEN || !TG_CHAT || !text) return;
   try {
@@ -88,4 +123,4 @@ async function logAudit(actor, action, targetUserId, month, detail) {
   }
 }
 
-module.exports = { logAudit, notifyTelegram, TG_LABELS };
+module.exports = { logAudit, notifyTelegram, TG_LABELS, ACTION_LABELS };

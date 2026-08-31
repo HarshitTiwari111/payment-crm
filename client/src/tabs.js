@@ -1,9 +1,9 @@
 /*
  * The sidebar.
  *
- * Seven screens, no more: the five receivables tabs, plus the two lists the rest of
- * the app is filed against — the people who use it and the verticals the money is
- * booked under.
+ * The five receivables tabs, plus the two lists the rest of the app is filed
+ * against — the people who use it and the verticals the money is booked under —
+ * plus the log, which is the record of both.
  *
  * This list decides what is DRAWN, never what is allowed — every route behind it is
  * checked again on the server. Hiding a tab is a convenience, not a control.
@@ -18,6 +18,7 @@ export const TAB_LABELS = {
   networks: "Network",
   users: "Users",
   verticals: "Vertical",
+  log: "Log",
 };
 
 /** Sub-titles for the page header, so each screen says what it is for. */
@@ -29,6 +30,7 @@ export const TAB_SUB = {
   networks: "The partners who owe us, and their default payment terms.",
   users: "Who can sign in, and which verticals they answer for.",
   verticals: "The verticals every payout is filed under.",
+  log: "Who signed in, and who changed what.",
 };
 
 /**
@@ -44,6 +46,6 @@ export function buildTabs(me) {
   // Vertical before Users: an account is created against verticals, so the list it
   // is filed under comes first.
   const ids = ["dashboard", "payouts", "calendar", "reports", "networks", "verticals"];
-  if (me.role === "admin") ids.push("users");
+  if (me.role === "admin") ids.push("users", "log");
   return ids;
 }
