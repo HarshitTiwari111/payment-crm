@@ -176,6 +176,10 @@ nav.tabs::-webkit-scrollbar { width: 0; height: 0; display: none; }
   font-size: 11px; text-transform: uppercase; letter-spacing: .5px;
   color: var(--muted); margin-right: 5px;
 }
+/* The month picker and its All button read as one control, so they sit on one line. */
+.monthpick { display: inline-flex; align-items: center; gap: 6px; }
+.monthpick .btn.sm { padding: 5px 10px; }
+
 .spacer { flex: 1; }
 /* Wide enough for the payouts table (11 columns) to fit without scrolling on a
    normal laptop, and still readable on a big monitor. */

@@ -10,7 +10,7 @@ import { api, qs } from "../../api/client";
 import { useApp } from "../../context/AppContext";
 import { Loading, Empty, Simple, Seg } from "../../components/ui";
 import { BarChart, LineChart, ds } from "../../components/Chart";
-import { money, pct, monthLabel, monthShort } from "../../api/format";
+import { money, pct, monthLabel, monthShort, curMonthStr } from "../../api/format";
 
 const VIEWS = [
   { value: "earned", label: "By earned month" },
@@ -20,7 +20,9 @@ const VIEWS = [
 ];
 
 export default function PayReports() {
-  const { month, verticalFilter, subcatFilter, reloadKey } = useApp();
+  const { month: picked, verticalFilter, subcatFilter, reloadKey } = useApp();
+  // as on the Dashboard: these report one month, so an empty picker falls back
+  const month = picked || curMonthStr();
   const [view, setView] = useState("earned");
   /*
    * The view is stored WITH the rows it belongs to. Picking a new report re-renders

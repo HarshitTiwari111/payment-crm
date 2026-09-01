@@ -42,12 +42,21 @@ export const TAB_SUB = {
  * as broken data rather than as a control that does not apply — so a screen that
  * ignores one no longer draws it.
  *
- * Month is deliberately absent from Payout. That screen is the whole ledger and has
- * its own earned/expected month filters, either of which can be cleared; the header
- * picker cannot be, because the Dashboard and Report have to have a month.
+ * Month is the earned month wherever it is drawn, including on Payout, where it
+ * replaces the filter that used to sit in the bar below.
  */
 export const USES_VERTICAL = new Set(["dashboard", "payouts", "calendar", "reports"]);
-export const USES_MONTH = new Set(["dashboard", "reports"]);
+export const USES_MONTH = new Set(["dashboard", "payouts", "reports"]);
+
+/*
+ * Where an empty month is a real answer, so the header offers a way back to it.
+ *
+ * Payout is the whole ledger and has to be able to show every month at once. The
+ * Dashboard and the Report cannot: each renders one month's figures, so clearing
+ * the picker there would leave them with nothing to draw, and they fall back to the
+ * current month rather than break.
+ */
+export const MONTH_OPTIONAL = new Set(["payouts"]);
 
 /**
  * Which tabs a role sees.

@@ -12,10 +12,12 @@ import { api, qs } from "../../api/client";
 import { useApp } from "../../context/AppContext";
 import { Loading, Simple, Kpi, Empty } from "../../components/ui";
 import { BarChart, ds } from "../../components/Chart";
-import { money, pct, monthLabel } from "../../api/format";
+import { money, pct, monthLabel, curMonthStr } from "../../api/format";
 
 export default function PayDashboard() {
-  const { month, verticalFilter, subcatFilter, reloadKey } = useApp();
+  const { month: picked, verticalFilter, subcatFilter, reloadKey } = useApp();
+  // Payout lets the month be cleared to mean every month; one month's figures cannot
+  const month = picked || curMonthStr();
   const [d, setD] = useState(null);
 
   useEffect(() => {

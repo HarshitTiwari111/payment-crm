@@ -7,12 +7,13 @@
  */
 import React, { useEffect, useMemo, useState } from "react";
 import { useApp } from "../context/AppContext";
-import { TAB_LABELS, buildTabs, USES_VERTICAL, USES_MONTH } from "../tabs";
+import { TAB_LABELS, buildTabs, USES_VERTICAL, USES_MONTH, MONTH_OPTIONAL } from "../tabs";
 import { TabIcon, IconMenu } from "../icons";
 import PasswordModal from "./PasswordModal";
 import Confirm from "./Confirm";
 import UserMenu from "./UserMenu";
 import SecurityModal from "./SecurityModal";
+import { curMonthStr } from "../api/format";
 
 const COLLAPSE_KEY = "payment-crm-sidebar";
 
@@ -54,6 +55,18 @@ export default function Layout({ tab, setTab, children }) {
    * so offering the rest would just be a list of dead ends. A single vertical gets
    * no "All" row — there is nothing to widen to.
    */
+  /*
+   * A screen that reports one month cannot sit under an empty picker: it falls back
+   * to this month to have something to draw, and an empty box above this month's
+   * figures says the wrong thing about them. So the picker is filled back in, once,
+   * on arriving at such a screen. Payout keeps its emptiness — every month is a real
+   * answer there, which is why it is the only screen offering All.
+   */
+  useEffect(() => {
+    if (!month && USES_MONTH.has(tab) && !MONTH_OPTIONAL.has(tab)) setMonth(curMonthStr());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, month]);
+
   const scope = pickableVerts();
   const vertOptions = [];
   if (scope.length >= 2) vertOptions.push({ value: "", label: "All verticals" });
@@ -130,7 +143,24 @@ export default function Layout({ tab, setTab, children }) {
           {USES_MONTH.has(tab) && (
             <div>
               <label>Month</label>
-              <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
+              <div className="monthpick">
+                <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
+                {/*
+                  Where every month at once is a real answer, there has to be a way
+                  back to it — a month input cannot be emptied reliably across
+                  browsers, and the Payout screen is the whole ledger.
+                */}
+                {MONTH_OPTIONAL.has(tab) && (
+                  <button
+                    type="button"
+                    className={"btn sm " + (month ? "ghost" : "primary")}
+                    onClick={() => setMonth("")}
+                    title="Show every month"
+                  >
+                    All
+                  </button>
+                )}
+              </div>
             </div>
           )}
 

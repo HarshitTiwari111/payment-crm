@@ -41,7 +41,7 @@ export default function PayoutsList() {
    * has to be able to show every month; the header picker always holds one, because
    * the Dashboard and Report cannot work without it.
    */
-  const { verticalFilter, subcatFilter, refresh, reloadKey } = useApp();
+  const { month, verticalFilter, subcatFilter, refresh, reloadKey } = useApp();
   const toast = useToast();
   const confirm = useConfirm();
   const [writingOff, setWritingOff] = useState(null);
@@ -50,7 +50,7 @@ export default function PayoutsList() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [filters, setFilters] = useState({
-    month: "", expectedMonth: "", status: "", network: "", q: "", overdue: "",
+    expectedMonth: "", status: "", network: "", q: "", overdue: "",
   });
 
   const [editing, setEditing] = useState(null);     // payout or {} for new
@@ -63,10 +63,15 @@ export default function PayoutsList() {
 
   const load = useCallback(async () => {
     setRes(null);
-    const scope = { vertical: verticalFilter, subcategory: subcatFilter };
+    /*
+     * The earned month comes from the header, like the vertical. Empty is a real
+     * answer here and means every month — this screen is the whole ledger, and the
+     * header's All button is how you get back to it.
+     */
+    const scope = { month, vertical: verticalFilter, subcategory: subcatFilter };
     const r = await api.get(`/api/payouts${qs({ ...filters, ...scope, page, limit })}`).catch(() => null);
     setRes(r || { items: [], total: 0, pages: 1, totals: {} });
-  }, [filters, verticalFilter, subcatFilter, page, limit]);
+  }, [filters, month, verticalFilter, subcatFilter, page, limit]);
 
   useEffect(() => { load(); }, [load, reloadKey]);
 
@@ -77,7 +82,7 @@ export default function PayoutsList() {
   const setF = (k, v) => { setPage(1); setFilters({ ...filters, [k]: v }); };
   const clearFilters = () => {
     setPage(1);
-    setFilters({ month: "", expectedMonth: "", status: "", network: "", q: "", overdue: "" });
+    setFilters({ expectedMonth: "", status: "", network: "", q: "", overdue: "" });
   };
   const anyFilter = Object.values(filters).some(Boolean);
 
@@ -165,9 +170,7 @@ export default function PayoutsList() {
           <Field label="Search">
             <input value={filters.q} placeholder="campaign, network, note…" onChange={(e) => setF("q", e.target.value)} />
           </Field>
-          <Field label="Earned month">
-            <input type="month" value={filters.month} onChange={(e) => setF("month", e.target.value)} />
-          </Field>
+
           <Field label="Expected month">
             <input type="month" value={filters.expectedMonth} onChange={(e) => setF("expectedMonth", e.target.value)} />
           </Field>
