@@ -31,13 +31,17 @@ const STATUSES = [
 ];
 
 export default function PayoutsList() {
-  const { month, pickableVerts, refresh, reloadKey } = useApp();
   /*
-   * Only the verticals the current view can actually return. Offering the full list
-   * to someone scoped to two of them hands out filters that always come back empty —
-   * the server narrows the query whatever the dropdown says.
+   * Vertical comes from the header, not from a second dropdown down here. Two
+   * controls for one thing can be set to contradict each other, and the loser is
+   * invisible: an empty table with a header that says iGaming and a filter bar that
+   * says Nutra reads as missing data rather than as a filter.
+   *
+   * Month does not, and stays in the bar below. This screen is the whole ledger and
+   * has to be able to show every month; the header picker always holds one, because
+   * the Dashboard and Report cannot work without it.
    */
-  const vertChoices = pickableVerts();
+  const { verticalFilter, subcatFilter, refresh, reloadKey } = useApp();
   const toast = useToast();
   const confirm = useConfirm();
   const [writingOff, setWritingOff] = useState(null);
@@ -46,7 +50,7 @@ export default function PayoutsList() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [filters, setFilters] = useState({
-    month: "", expectedMonth: "", status: "", network: "", vertical: "", q: "", overdue: "",
+    month: "", expectedMonth: "", status: "", network: "", q: "", overdue: "",
   });
 
   const [editing, setEditing] = useState(null);     // payout or {} for new
@@ -59,9 +63,10 @@ export default function PayoutsList() {
 
   const load = useCallback(async () => {
     setRes(null);
-    const r = await api.get(`/api/payouts${qs({ ...filters, page, limit })}`).catch(() => null);
+    const scope = { vertical: verticalFilter, subcategory: subcatFilter };
+    const r = await api.get(`/api/payouts${qs({ ...filters, ...scope, page, limit })}`).catch(() => null);
     setRes(r || { items: [], total: 0, pages: 1, totals: {} });
-  }, [filters, page, limit]);
+  }, [filters, verticalFilter, subcatFilter, page, limit]);
 
   useEffect(() => { load(); }, [load, reloadKey]);
 
@@ -72,7 +77,7 @@ export default function PayoutsList() {
   const setF = (k, v) => { setPage(1); setFilters({ ...filters, [k]: v }); };
   const clearFilters = () => {
     setPage(1);
-    setFilters({ month: "", expectedMonth: "", status: "", network: "", vertical: "", q: "", overdue: "" });
+    setFilters({ month: "", expectedMonth: "", status: "", network: "", q: "", overdue: "" });
   };
   const anyFilter = Object.values(filters).some(Boolean);
 
@@ -175,12 +180,6 @@ export default function PayoutsList() {
             <select value={filters.network} onChange={(e) => setF("network", e.target.value)}>
               <option value="">All networks</option>
               {networks.map((n) => <option key={n._id} value={n.name}>{n.name}</option>)}
-            </select>
-          </Field>
-          <Field label="Vertical">
-            <select value={filters.vertical} onChange={(e) => setF("vertical", e.target.value)}>
-              <option value="">All verticals</option>
-              {vertChoices.map((v) => <option key={v} value={v}>{v}</option>)}
             </select>
           </Field>
         </div>

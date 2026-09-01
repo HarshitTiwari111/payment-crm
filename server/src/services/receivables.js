@@ -20,16 +20,40 @@ const PayoutTxn = require("../models/PayoutTxn");
 const { round2, normVert, today, monthOfDate, addMonths } = require("../utils/helpers");
 const { pendingOf, isOverdue } = require("./payouts");
 
-/** Restrict a payout query to a set of verticals (null = admin, no restriction). */
-function verticalFilter(allowedSet) {
-  if (!allowedSet) return {};
-  return { $expr: { $in: [{ $toLower: { $trim: { input: "$vertical" } } }, [...allowedSet]] } };
+/*
+ * Scope, as every function in this file receives it.
+ *
+ * It arrives either as the bare set of allowed verticals — null for an admin,
+ * meaning no restriction — or as { verticals, subcategory } when the caller is also
+ * narrowing to what the header is pointed at. Only the two helpers below ever look
+ * inside it; the twelve functions under them pass it straight through, which is why
+ * the shape could grow at all without touching any of them.
+ */
+function scopeOf(scope) {
+  if (scope && typeof scope === "object" && !(scope instanceof Set)) {
+    return { verticals: scope.verticals || null, subcategory: scope.subcategory || "" };
+  }
+  return { verticals: scope || null, subcategory: "" };
 }
 
-/** Apply a vertical scope in JS — simpler and safe for the row counts here. */
-function inScope(p, allowedSet) {
-  if (!allowedSet) return true;
-  return allowedSet.has(normVert(p.vertical));
+/** Restrict a payout query to a set of verticals (null = admin, no restriction). */
+function verticalFilter(scope) {
+  const { verticals } = scopeOf(scope);
+  if (!verticals) return {};
+  return { $expr: { $in: [{ $toLower: { $trim: { input: "$vertical" } } }, [...verticals]] } };
+}
+
+/** Apply a scope in JS — simpler and safe for the row counts here. */
+function inScope(p, scope) {
+  const { verticals, subcategory } = scopeOf(scope);
+  if (verticals && !verticals.has(normVert(p.vertical))) return false;
+  /*
+   * A sub-vertical filter excludes payouts that have none. They predate the field
+   * and belong to no sub-vertical, so counting them under whichever one is selected
+   * would inflate that one's totals with money that was never attributed to it.
+   */
+  if (subcategory && normVert(p.subcategory) !== normVert(subcategory)) return false;
+  return true;
 }
 
 /**
@@ -211,6 +235,7 @@ async function calendar(fromMonth, months = 6, allowedSet) {
 function shape(p) {
   return {
     id: p.id, campaign: p.campaign, network: p.network, vertical: p.vertical,
+    subcategory: p.subcategory || "",
     earnedMonth: p.earnedMonth, expectedDate: p.expectedDate,
     amountExpected: p.amountExpected, amountReceived: p.amountReceived,
     amountCut: p.amountCut, amountCarried: p.amountCarried,

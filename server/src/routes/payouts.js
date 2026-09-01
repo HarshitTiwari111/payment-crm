@@ -59,6 +59,7 @@ function shape(p) {
     campaign: p.campaign || "",
     network: p.network,
     vertical: p.vertical || "",
+    subcategory: p.subcategory || "",
     earnedMonth: p.earnedMonth,
     expectedMonth: monthOfDate(p.expectedDate),
     expectedDate: p.expectedDate || "",
@@ -100,6 +101,7 @@ router.get("/payouts", auth, requireRead, ah(async (req, res) => {
   if (req.query.status) q.status = req.query.status;
   if (req.query.network) q.network = new RegExp(`^${svc.escapeRe(req.query.network)}$`, "i");
   if (req.query.vertical) q.vertical = new RegExp(`^${svc.escapeRe(req.query.vertical)}$`, "i");
+  if (req.query.subcategory) q.subcategory = new RegExp(`^${svc.escapeRe(req.query.subcategory)}$`, "i");
   if (req.query.campaign) q.campaign = new RegExp(`^${svc.escapeRe(req.query.campaign)}$`, "i");
   if (req.query.q) {
     const rx = new RegExp(svc.escapeRe(req.query.q), "i");
@@ -135,44 +137,61 @@ router.get("/payouts", auth, requireRead, ah(async (req, res) => {
 
 /* ---------------------------------------------------------- dashboard etc */
 
+/*
+ * What a read may see, narrowed to what the header is pointed at.
+ *
+ * Two different things end up in one object. The verticals a manager holds are
+ * permission — the server decides them and the client cannot argue. `?vertical=` is
+ * a view: the person choosing one of the several verticals they work in. Keeping
+ * them apart matters, because they compose in one direction only. Asking for a
+ * vertical you do not hold narrows the result to nothing and can never widen it,
+ * which is why the requested one is intersected with the allowed set rather than
+ * replacing it.
+ */
+async function readScope(req) {
+  const allowed = await verticalsInScope(req.scopeUser);
+  const vertical = String(req.query.vertical || "").trim();
+  const subcategory = String(req.query.subcategory || "").trim();
+
+  let verticals = allowed;
+  if (vertical) {
+    const want = normVert(vertical);
+    verticals = allowed && !allowed.has(want) ? new Set() : new Set([want]);
+  }
+  return { verticals, subcategory };
+}
 /** KPI cards for a month. Registered before /:id so it isn't read as an id. */
 router.get("/payouts/summary/:month", auth, requireRead, ah(async (req, res) => {
-  const allowed = await verticalsInScope(req.scopeUser);
-  res.json(await receivables.dashboard(req.params.month, allowed));
+  res.json(await receivables.dashboard(req.params.month, await readScope(req)));
 }));
 
 /** Upcoming expected payments grouped by month. */
 router.get("/payouts/calendar", auth, requireRead, ah(async (req, res) => {
-  const allowed = await verticalsInScope(req.scopeUser);
   const from = req.query.from || monthOfDate(today());
   const months = Math.min(24, Math.max(1, Number(req.query.months) || 6));
-  res.json(await receivables.calendar(from, months, allowed));
+  res.json(await receivables.calendar(from, months, await readScope(req)));
 }));
 
 /** Everything still owed, right now, whatever month it came from. */
 router.get("/payouts/outstanding", auth, requireRead, ah(async (req, res) => {
-  const allowed = await verticalsInScope(req.scopeUser);
-  res.json(await receivables.outstanding(allowed));
+  res.json(await receivables.outstanding(await readScope(req)));
 }));
 
 /* ---------------------------------------------------------------- reports */
 
 /** "Of what we earned in August, how much is received / cut / still pending." */
 router.get("/payouts/reports/earned/:month", auth, requireRead, ah(async (req, res) => {
-  const allowed = await verticalsInScope(req.scopeUser);
-  res.json(await receivables.byEarnedMonth(req.params.month, allowed));
+  res.json(await receivables.byEarnedMonth(req.params.month, await readScope(req)));
 }));
 
 /** "How much cash actually came in during October." */
 router.get("/payouts/reports/received/:month", auth, requireRead, ah(async (req, res) => {
-  const allowed = await verticalsInScope(req.scopeUser);
-  res.json(await receivables.receivedInMonth(req.params.month, allowed));
+  res.json(await receivables.receivedInMonth(req.params.month, await readScope(req)));
 }));
 
 /** Who pays on time, who cuts the most, average delay. */
 router.get("/payouts/reports/networks", auth, requireRead, ah(async (req, res) => {
-  const allowed = await verticalsInScope(req.scopeUser);
-  res.json(await receivables.networkReliability(allowed));
+  res.json(await receivables.networkReliability(await readScope(req)));
 }));
 
 /**
@@ -191,10 +210,10 @@ router.get("/payouts/reports/trend", auth, requireRead, ah(async (req, res) => {
     months.push(d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"));
   }
 
-  const allowed = await verticalsInScope(req.scopeUser);
+  const scope = await readScope(req);
   const out = [];
   for (const month of months) {
-    const rz = await receivables.realizedForMonths([month], allowed);
+    const rz = await receivables.realizedForMonths([month], scope);
     const t = rz.total;
     out.push({
       month,
@@ -275,7 +294,11 @@ router.put("/payouts/:id", auth, requireWrite, validate({ body: S.updatePayout, 
   if (b.vertical !== undefined && String(b.vertical).trim() !== p.vertical) {
     await assertVerticalAllowed(req.scopeUser, String(b.vertical).trim());
     p.vertical = String(b.vertical).trim();
+    // the old sub-vertical belonged to the old vertical; carrying it across would
+    // file this payout under a pairing that does not exist
+    p.subcategory = "";
   }
+  if (b.subcategory !== undefined) p.subcategory = p.vertical ? String(b.subcategory).trim() : "";
   if (b.campaign !== undefined) p.campaign = String(b.campaign).trim();
   if (b.network !== undefined && String(b.network).trim()) p.network = String(b.network).trim();
   if (b.earnedMonth !== undefined && /^\d{4}-\d{2}$/.test(String(b.earnedMonth))) p.earnedMonth = String(b.earnedMonth);
@@ -299,7 +322,7 @@ router.put("/payouts/:id", auth, requireWrite, validate({ body: S.updatePayout, 
 
   p.status = svc.computeStatus(p);
   await p.save();
-  await svc.registerNames({ network: p.network, campaign: p.campaign, vertical: p.vertical }, req.user);
+  await svc.registerNames({ network: p.network, campaign: p.campaign, vertical: p.vertical, subcategory: p.subcategory }, req.user);
 
   await logAudit(req.user, "payout_updated", null, p.earnedMonth,
     `#${p.id} ${p.network} · ${p.vertical || "—"} · ${p.currency} ${p.amountExpected}`);

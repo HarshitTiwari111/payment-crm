@@ -26,6 +26,14 @@ const payoutSchema = new mongoose.Schema(
     campaign: { type: String, default: "", index: true },
     network: { type: String, required: true, index: true },
     vertical: { type: String, default: "", index: true },
+    /*
+     * The sub-vertical, when the vertical is split into them — the traffic source a
+     * payout came through, inside the vertical it is booked under. Optional, and
+     * empty on every payout written before this existed, which is why nothing may
+     * filter on it by assuming it is set: an empty one means "not recorded", not
+     * "belongs to no sub-vertical".
+     */
+    subcategory: { type: String, default: "", index: true },
 
     earnedMonth: { type: String, required: true, index: true },   // YYYY-MM
     amountExpected: { type: Number, default: 0 },

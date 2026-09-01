@@ -20,7 +20,7 @@ const VIEWS = [
 ];
 
 export default function PayReports() {
-  const { month, reloadKey } = useApp();
+  const { month, verticalFilter, subcatFilter, reloadKey } = useApp();
   const [view, setView] = useState("earned");
   /*
    * The view is stored WITH the rows it belongs to. Picking a new report re-renders
@@ -32,17 +32,23 @@ export default function PayReports() {
 
   useEffect(() => {
     let alive = true;
+  /*
+   * The header's vertical rides along on every read. It is a view, not a
+   * permission — the server intersects it with what this account may see, so
+   * asking for a vertical you do not hold returns nothing rather than everything.
+   */
+    const scope = { vertical: verticalFilter, subcategory: subcatFilter };
     const url = {
-      earned: `/api/payouts/reports/earned/${month}`,
-      received: `/api/payouts/reports/received/${month}`,
-      networks: "/api/payouts/reports/networks",
-      trend: `/api/payouts/reports/trend${qs({ months: 6, to: month })}`,
+      earned: `/api/payouts/reports/earned/${month}${qs(scope)}`,
+      received: `/api/payouts/reports/received/${month}${qs(scope)}`,
+      networks: `/api/payouts/reports/networks${qs(scope)}`,
+      trend: `/api/payouts/reports/trend${qs({ months: 6, to: month, ...scope })}`,
     }[view];
     api.get(url)
       .then((r) => { if (alive) setData({ view, rows: r }); })
       .catch(() => { if (alive) setData(null); });
     return () => { alive = false; };
-  }, [view, month, reloadKey]);
+  }, [view, month, verticalFilter, subcatFilter, reloadKey]);
 
   const rows = data && data.view === view ? data.rows : null;
 

@@ -110,6 +110,8 @@ const createPayout = z.object({
   campaign: text(120).optional(),
   network: requiredText(80, "Network"),
   vertical: text(60).optional(),
+  // the sub-vertical inside that vertical; blank is a real answer, not a missing one
+  subcategory: text(60).optional(),
   earnedMonth: month,
   amountExpected: amount.refine((v) => v > 0, { message: "Enter the amount owed." }),
   expectedDate: optionalDate,

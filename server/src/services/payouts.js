@@ -24,6 +24,7 @@ const Payout = require("../models/Payout");
 const PayoutTxn = require("../models/PayoutTxn");
 const Network = require("../models/Network");
 const Campaign = require("../models/Campaign");
+const Subcategory = require("../models/Subcategory");
 const { withTransaction } = require("../config/db");
 const { logAudit } = require("../utils/audit");
 const {
@@ -147,7 +148,7 @@ async function recalcPayout(payoutId, session = null) {
 /* ------------------------------------------------------------- create */
 
 /** Register a network / campaign name the first time it is used, so filters stay clean. */
-async function registerNames({ network, campaign, vertical }, actor, session = null) {
+async function registerNames({ network, campaign, vertical, subcategory }, actor, session = null) {
   if (network) {
     const exists = await Network.findOne({ name: new RegExp(`^${escapeRe(network)}$`, "i") }).session(session || null);
     if (!exists) {
@@ -161,6 +162,24 @@ async function registerNames({ network, campaign, vertical }, actor, session = n
     }).session(session || null);
     if (!exists) {
       await Campaign.create([{ name: campaign, vertical: vertical || "", createdBy: actor && actor.id, createdByName: actor && actor.name }], { session: session || undefined });
+    }
+  }
+  /*
+   * Same reasoning as the two above: a payout filed under a sub-vertical the list
+   * has never heard of would be filterable by a value the filter never offers. The
+   * screen picks from the list so this rarely fires — it is for imports and anything
+   * else that talks to the API directly.
+   */
+  if (subcategory && vertical) {
+    const exists = await Subcategory.findOne({
+      name: new RegExp(`^${escapeRe(subcategory)}$`, "i"),
+      vertical,
+    }).session(session || null);
+    if (!exists) {
+      await Subcategory.create(
+        [{ name: subcategory, vertical, createdBy: actor && actor.id, createdByName: actor && actor.name }],
+        { session: session || undefined }
+      );
     }
   }
 }
@@ -193,6 +212,7 @@ function payTo(data) {
 async function createPayout(data, actor, session = null) {
   const network = String(data.network || "").trim();
   const vertical = String(data.vertical || "").trim();
+  const subcategory = String(data.subcategory || "").trim();
   const campaign = String(data.campaign || "").trim();
   const earnedMonth = String(data.earnedMonth || "").trim();
 
@@ -210,6 +230,8 @@ async function createPayout(data, actor, session = null) {
     campaign,
     network,
     vertical,
+    // a sub-vertical only means anything inside its vertical; without one it is noise
+    subcategory: vertical ? subcategory : "",
     earnedMonth,
     amountExpected: round2(data.amountExpected),
     expectedDate,
@@ -228,7 +250,7 @@ async function createPayout(data, actor, session = null) {
   doc.status = computeStatus(doc);
 
   const [created] = await Payout.create([doc], { session: session || undefined });
-  await registerNames({ network, campaign, vertical }, actor, session);
+  await registerNames({ network, campaign, vertical, subcategory: doc.subcategory }, actor, session);
   return created;
 }
 

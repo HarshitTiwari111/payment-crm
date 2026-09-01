@@ -358,6 +358,68 @@ async function main() {
   ok("login history is recorded", (await admin.get("/api/me/login-history")).data.length > 0);
 
   console.log("");
+  console.log("=== the header filters actually filter ===");
+  /*
+   * These are what the header points at, and they used to reach nothing: the vertical
+   * was read by no screen at all and the month by two of eight, so picking September
+   * on the Payout page left August's rows on screen.
+   */
+  const sub1 = await admin.post("/api/subcategories", { name: "Facebook", vertical: "CPS" });
+  ok("a sub-vertical exists to file under", sub1.status === 200);
+  const tagged = await admin.post("/api/payouts", {
+    network: "AdCombo", vertical: "CPS", subcategory: "Facebook", earnedMonth: "2026-07", amountExpected: 640,
+  });
+  eq("a payout can be filed under a sub-vertical", tagged.data.subcategory, "Facebook");
+  const untagged = await admin.post("/api/payouts", {
+    network: "AdCombo", vertical: "CPS", earnedMonth: "2026-07", amountExpected: 360,
+  });
+  eq("...and does not have to be", untagged.data.subcategory, "");
+
+  const allCps = await admin.get("/api/payouts?vertical=CPS&month=2026-07");
+  const justFb = await admin.get("/api/payouts?vertical=CPS&subcategory=Facebook&month=2026-07");
+  ok("the list narrows to a sub-vertical", justFb.data.total < allCps.data.total && justFb.data.total > 0,
+    `${justFb.data.total} of ${allCps.data.total}`);
+  ok("...to exactly the ones filed under it", justFb.data.items.every((p) => p.subcategory === "Facebook"));
+  eq("a payout with no sub-vertical is not counted under one", justFb.data.items.some((p) => p.id === untagged.data.id), false);
+
+  /* The same narrowing has to reach the figures, not just the table. */
+  const dashAll = await admin.get("/api/payouts/summary/2026-07");
+  const dashFb = await admin.get("/api/payouts/summary/2026-07?vertical=CPS&subcategory=Facebook");
+  ok("the dashboard narrows too", dashFb.data.outstanding.pending < dashAll.data.outstanding.pending,
+    `${dashFb.data.outstanding.pending} vs ${dashAll.data.outstanding.pending}`);
+  const repAll = await admin.get("/api/payouts/reports/earned/2026-07");
+  const repFb = await admin.get("/api/payouts/reports/earned/2026-07?vertical=CPS&subcategory=Facebook");
+  eq("and the earned-month report", repFb.data.total.expected, 640);
+  ok("...which is less than the unfiltered month", repAll.data.total.expected > repFb.data.total.expected);
+  const netAll = await admin.get("/api/payouts/reports/networks");
+  const netOne = await admin.get("/api/payouts/reports/networks?vertical=CPS");
+  ok("and network reliability", netOne.data.length <= netAll.data.length && netOne.data.length > 0);
+  const calAll = await admin.get("/api/payouts/calendar?from=2026-07&months=6");
+  const calOne = await admin.get("/api/payouts/calendar?from=2026-07&months=6&vertical=CPS");
+  ok("and the calendar", JSON.stringify(calOne.data).length < JSON.stringify(calAll.data).length);
+
+  /*
+   * The vertical in the query is a view, never a permission. A fresh session here
+   * on purpose: the password tests above revoked the manager one.
+   */
+  const cpsMgr = await admin.post("/api/users", {
+    name: "Scoped Mgr", username: "scoped", password: "manager123", role: "manager", verticals: ["CPS"],
+  });
+  ok("a CPS-only manager exists", cpsMgr.status === 200);
+  const cps = session();
+  eq("...and can sign in", (await cps.post("/api/login", { username: "scoped", password: "manager123" })).status, 200);
+  const spy = await cps.get("/api/payouts/summary/2026-07?vertical=Nutra");
+  eq("a manager asking for a vertical they do not hold gets nothing", spy.data.outstanding.pending, 0);
+  const spyList = await cps.get("/api/payouts?vertical=Nutra");
+  eq("...and no rows either", spyList.data.total, 0);
+  const own = await cps.get("/api/payouts?vertical=CPS");
+  ok("but their own vertical still answers", own.data.total > 0, `${own.data.total} rows`);
+
+  /* Cleanup: the counts further down are asserted against a fixed dataset. */
+  await admin.del(`/api/payouts/${tagged.data.id}?confirm=1`);
+  await admin.del(`/api/payouts/${untagged.data.id}?confirm=1`);
+
+  console.log("");
   console.log("=== the log ===");
   const actv = await admin.get("/api/log/activity?limit=200");
   eq("an admin can read the activity log", actv.status, 200);

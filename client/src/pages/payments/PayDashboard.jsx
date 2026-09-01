@@ -8,24 +8,24 @@
  *   compared against the month's ad spend.
  */
 import React, { useEffect, useState } from "react";
-import { api } from "../../api/client";
+import { api, qs } from "../../api/client";
 import { useApp } from "../../context/AppContext";
 import { Loading, Simple, Kpi, Empty } from "../../components/ui";
 import { BarChart, ds } from "../../components/Chart";
 import { money, pct, monthLabel } from "../../api/format";
 
 export default function PayDashboard() {
-  const { month, reloadKey } = useApp();
+  const { month, verticalFilter, subcatFilter, reloadKey } = useApp();
   const [d, setD] = useState(null);
 
   useEffect(() => {
     let alive = true;
     setD(null);
-    api.get(`/api/payouts/summary/${month}`)
+    api.get(`/api/payouts/summary/${month}${qs({ vertical: verticalFilter, subcategory: subcatFilter })}`)
       .then((r) => { if (alive) setD(r); })
       .catch(() => { if (alive) setD(null); });
     return () => { alive = false; };
-  }, [month, reloadKey]);
+  }, [month, verticalFilter, subcatFilter, reloadKey]);
 
   if (!d) return <Loading />;
 

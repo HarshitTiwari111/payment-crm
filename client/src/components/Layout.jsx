@@ -7,7 +7,7 @@
  */
 import React, { useEffect, useMemo, useState } from "react";
 import { useApp } from "../context/AppContext";
-import { TAB_LABELS, buildTabs } from "../tabs";
+import { TAB_LABELS, buildTabs, USES_VERTICAL, USES_MONTH } from "../tabs";
 import { TabIcon, IconMenu } from "../icons";
 import PasswordModal from "./PasswordModal";
 import Confirm from "./Confirm";
@@ -115,19 +115,24 @@ export default function Layout({ tab, setTab, children }) {
             </div>
           )}
 
-          <div>
-            <label>Vertical</label>
-            <select value={vertValue} onChange={(e) => pickVertical(e.target.value)}>
-              {vertOptions.map((o) => (
-                <option key={o.value || "__all"} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-          </div>
+          {/* drawn only where the screen below actually reads it — see tabs.js */}
+          {USES_VERTICAL.has(tab) && (
+            <div>
+              <label>Vertical</label>
+              <select value={vertValue} onChange={(e) => pickVertical(e.target.value)}>
+                {vertOptions.map((o) => (
+                  <option key={o.value || "__all"} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
-          <div>
-            <label>Month</label>
-            <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
-          </div>
+          {USES_MONTH.has(tab) && (
+            <div>
+              <label>Month</label>
+              <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
+            </div>
+          )}
 
           <div className="spacer" />
           <UserMenu

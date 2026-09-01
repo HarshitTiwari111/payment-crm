@@ -33,6 +33,22 @@ export const TAB_SUB = {
   log: "Who signed in, and who changed what.",
 };
 
+/*
+ * Which header controls each screen actually obeys.
+ *
+ * The two selectors used to be drawn on every screen and read by almost none of
+ * them: Vertical was wired to nothing at all, and Month only reached the Dashboard
+ * and the Report. Picking September on the Payout page changed nothing, which reads
+ * as broken data rather than as a control that does not apply — so a screen that
+ * ignores one no longer draws it.
+ *
+ * Month is deliberately absent from Payout. That screen is the whole ledger and has
+ * its own earned/expected month filters, either of which can be cleared; the header
+ * picker cannot be, because the Dashboard and Report have to have a month.
+ */
+export const USES_VERTICAL = new Set(["dashboard", "payouts", "calendar", "reports"]);
+export const USES_MONTH = new Set(["dashboard", "reports"]);
+
 /**
  * Which tabs a role sees.
  *

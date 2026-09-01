@@ -37,13 +37,14 @@ function deriveDate(earnedMonth, netTerms) {
 }
 
 export default function PayoutModal({ payout, networks, onClose, onSaved }) {
-  const { pickableVerts } = useApp();
+  const { pickableVerts, subsOf } = useApp();
   const allowed = pickableVerts();
 
   const [form, setForm] = useState(() => ({
     campaign: payout?.campaign || "",
     network: payout?.network || "",
     vertical: payout?.vertical || allowed[0] || "",
+    subcategory: payout?.subcategory || "",
     earnedMonth: payout?.earnedMonth || curMonthStr(),
     amountExpected: payout?.amountExpected || "",
     netTerms: payout?.netTerms == null ? "" : String(payout.netTerms),
@@ -151,11 +152,25 @@ export default function PayoutModal({ payout, networks, onClose, onSaved }) {
           </datalist>
         </Field>
         <Field label="Vertical">
-          <select value={form.vertical} onChange={(e) => setForm({ ...form, vertical: e.target.value })}>
+          {/* changing the vertical drops the sub-vertical: it belonged to the old one */}
+          <select value={form.vertical} onChange={(e) => setForm({ ...form, vertical: e.target.value, subcategory: "" })}>
             <option value="">—</option>
             {allowed.map((v) => <option key={v} value={v}>{v}</option>)}
           </select>
         </Field>
+
+        {/*
+          Only where the chosen vertical is actually split into sub-verticals. Drawing
+          an empty dropdown on the others would suggest something is missing.
+        */}
+        {subsOf(form.vertical).length > 0 && (
+          <Field label="Sub-vertical (optional)">
+            <select value={form.subcategory} onChange={(e) => setForm({ ...form, subcategory: e.target.value })}>
+              <option value="">—</option>
+              {subsOf(form.vertical).map((sc) => <option key={sc.id ?? sc.name} value={sc.name}>{sc.name}</option>)}
+            </select>
+          </Field>
+        )}
 
         <Field label="Campaign (optional)">
           <input

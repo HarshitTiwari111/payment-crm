@@ -24,7 +24,7 @@ const PRESETS = [
 ];
 
 export default function PayCalendar() {
-  const { reloadKey } = useApp();
+  const { verticalFilter, subcatFilter, reloadKey } = useApp();
   const [groups, setGroups] = useState(null);
   const [preset, setPreset] = useState("6");
   const [from, setFrom] = useState(curMonthStr());
@@ -35,11 +35,11 @@ export default function PayCalendar() {
   useEffect(() => {
     let alive = true;
     setGroups(null);
-    api.get(`/api/payouts/calendar${qs({ from, months })}`)
+    api.get(`/api/payouts/calendar${qs({ from, months, vertical: verticalFilter, subcategory: subcatFilter })}`)
       .then((r) => { if (alive) setGroups(Array.isArray(r) ? r : []); })
       .catch(() => { if (alive) setGroups([]); });
     return () => { alive = false; };
-  }, [from, months, reloadKey]);
+  }, [from, months, verticalFilter, subcatFilter, reloadKey]);
 
   const shown = useMemo(() => {
     if (!groups) return null;
