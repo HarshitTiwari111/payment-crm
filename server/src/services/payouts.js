@@ -356,8 +356,17 @@ async function reconcile(payoutId, body, actor) {
 }
 
 /**
- * A correction. Transactions are immutable, so fixing a mistake means
- * posting an opposite entry that references the original rather than editing it.
+ * A correction.
+ *
+ * Amounts are immutable: fixing one posts an opposite entry that references the
+ * original rather than overwriting it, so the ledger still adds up and still shows
+ * what was first recorded.
+ *
+ * The date is not an amount, and a difference cannot express it. It says which
+ * month the cash landed in, and getting it wrong puts real money in the wrong month
+ * on every cash-basis figure in the app — with no arithmetic that could move it
+ * back. So a date is corrected in place, and the move is written to the audit log,
+ * which is where the record of a change belongs.
  */
 async function adjust(payoutId, originalTxnId, body, actor) {
   return withTransaction(async (session) => {
@@ -402,10 +411,41 @@ async function adjust(payoutId, originalTxnId, body, actor) {
     const deductionDelta = given(body.setDeduction)
       ? round2(Number(body.setDeduction) - netOf("deduction")) : undefined;
 
+    /*
+     * The date move, if one was asked for. Done before the adjusting entry so that
+     * entry can be dated to match: a correction posted a month away from the thing
+     * it corrects splits one payment across two cash months.
+     */
+    const wantDate = normalizeExpectedDate(body.setDate);
+    const movedFrom = wantDate && wantDate !== original.date ? original.date : null;
+    if (movedFrom) {
+      original.date = wantDate;
+      await original.save({ session: session || undefined });
+    }
+
+    /*
+     * Nothing to do is worth saying out loud rather than quietly writing a row of
+     * zeroes onto the ledger.
+     */
+    const noAmountChange = (receivedDelta === undefined || receivedDelta === 0)
+      && (deductionDelta === undefined || deductionDelta === 0)
+      && !given(body.amountReceived) && !given(body.deduction) && !given(body.carriedForward);
+    if (noAmountChange && !movedFrom) {
+      const err = new Error("nothing_to_correct");
+      err.code = "nothing_to_correct";
+      throw err;
+    }
+
+    // a date-only correction moves the entry and posts nothing
+    if (noAmountChange) {
+      const moved = await recalcPayout(payout.id, session);
+      return { payout: moved, txn: null, movedFrom, movedTo: original.date };
+    }
+
     const [txn] = await PayoutTxn.create(
       [{
         payoutId: payout.id,
-        date: normalizeExpectedDate(body.date) || today(),
+        date: wantDate || normalizeExpectedDate(body.date) || today(),
         // may be negative — that is the point
         amountReceived: receivedDelta === undefined ? round2(body.amountReceived) : receivedDelta,
         deduction: deductionDelta === undefined ? round2(body.deduction) : deductionDelta,
@@ -420,7 +460,7 @@ async function adjust(payoutId, originalTxnId, body, actor) {
       { session: session || undefined }
     );
     const updated = await recalcPayout(payout.id, session);
-    return { payout: updated, txn };
+    return { payout: updated, txn, movedFrom, movedTo: movedFrom ? original.date : null };
   });
 }
 

@@ -1,9 +1,13 @@
 /*
  * One payout and its full ledger.
  *
- * Transactions are immutable, so this shows the history exactly as it happened.
- * A correction is posted as an adjusting entry that points back at the one it
- * fixes — the original stays visible, which is the point of an audit trail.
+ * Amounts are immutable, so this shows the history exactly as it happened: a
+ * correction is posted as an adjusting entry pointing back at the one it fixes, and
+ * the original stays visible, which is the point of an audit trail.
+ *
+ * The date is the exception, and has to be. It decides which month the cash counts
+ * in, and no adjusting entry can move it — so correcting a date moves the entry
+ * itself, and the log records that it moved.
  */
 import React, { useCallback, useEffect, useState } from "react";
 import { api } from "../../api/client";
@@ -19,7 +23,7 @@ export default function PayoutDetail({ id, onClose, onChanged, onReconcile }) {
   const toast = useToast();
   const [d, setD] = useState(null);
   const [adjusting, setAdjusting] = useState(null);
-  const [adj, setAdj] = useState({ amountReceived: "", deduction: "", note: "" });
+  const [adj, setAdj] = useState({ amountReceived: "", deduction: "", date: "", note: "" });
   const [err, setErr] = useState("");
 
   const load = useCallback(async () => {
@@ -49,6 +53,7 @@ export default function PayoutDetail({ id, onClose, onChanged, onReconcile }) {
     setAdj({
       amountReceived: String(netOf(t, "amountReceived")),
       deduction: String(netOf(t, "deduction")),
+      date: t.date || "",
       note: "",
     });
   };
@@ -61,8 +66,9 @@ export default function PayoutDetail({ id, onClose, onChanged, onReconcile }) {
       setErr("Enter the figures this entry should have had. Neither can be negative.");
       return;
     }
-    if (rec === adjusting.netReceived && ded === adjusting.netDeduction) {
-      setErr("These are the figures this entry already comes to — nothing to correct.");
+    const dateChanged = adj.date && adj.date !== adjusting.date;
+    if (rec === adjusting.netReceived && ded === adjusting.netDeduction && !dateChanged) {
+      setErr("This is what the entry already says — nothing to correct.");
       return;
     }
     try {
@@ -71,19 +77,27 @@ export default function PayoutDetail({ id, onClose, onChanged, onReconcile }) {
        * entry it loads itself, so a screen left open while someone else corrected
        * the same row cannot post arithmetic based on a stale number.
        */
-      await api.post(`/api/payouts/${id}/adjust`, {
+      const wasDate = adjusting.date;
+      const res = await api.post(`/api/payouts/${id}/adjust`, {
         txnId: adjusting.id,
         setReceived: rec,
         setDeduction: ded,
+        setDate: adj.date || undefined,
         deductionReason: ded ? (adjusting.deductionReason || "other") : "",
         note: adj.note || `Correction to txn #${adjusting.id}`,
       });
       const wasId = adjusting.id;
+      const movedTo = res && res.movedFrom ? res.movedTo : (adj.date !== wasDate ? adj.date : null);
       setAdjusting(null);
-      setAdj({ amountReceived: "", deduction: "", note: "" });
+      setAdj({ amountReceived: "", deduction: "", date: "", note: "" });
       await load();
       onChanged();
-      toast.success(`Entry #${wasId} corrected`, "The original stays on the ledger, with a correction against it.");
+      toast.success(
+        `Entry #${wasId} corrected`,
+        movedTo
+          ? `Moved to ${movedTo}. The move is in the log.`
+          : "The original stays on the ledger, with a correction against it."
+      );
     } catch (e) {
       setErr("Could not post the correction.");
       toast.error("Could not post the correction");
@@ -233,6 +247,16 @@ export default function PayoutDetail({ id, onClose, onChanged, onReconcile }) {
                 onChange={(e) => setAdj({ ...adj, deduction: e.target.value })} />
             </Field>
           </div>
+
+          {/*
+            The date decides which month this cash counts in, so a wrong one puts real
+            money in the wrong month everywhere. Changing it moves the entry itself —
+            there is no arithmetic that could — and the move is written to the log.
+          */}
+          <Field label="Date the cash arrived">
+            <input type="date" value={adj.date}
+              onChange={(e) => setAdj({ ...adj, date: e.target.value })} />
+          </Field>
 
           {/*
             The arithmetic, said out loud before it is posted. This is the step people

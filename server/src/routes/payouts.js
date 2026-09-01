@@ -388,11 +388,18 @@ router.post("/payouts/:id/adjust", auth, requireWrite, validate({ body: S.adjust
   } catch (e) {
     if (e.code === "txn_not_found") return res.status(404).json({ error: "txn_not_found" });
     if (e.code === "not_found") return res.status(404).json({ error: "not_found" });
+    if (e.code === "nothing_to_correct") return res.status(400).json({ error: "nothing_to_correct" });
     throw e;
   }
+  /*
+   * A moved date leaves no trace on the ledger — the entry simply sits in another
+   * month — so the audit line is the only record that it happened, and it names both
+   * ends of the move.
+   */
+  const moved = out.movedFrom ? ` · moved ${out.movedFrom} → ${out.movedTo}` : "";
   await logAudit(req.user, "payout_adjusted", null, out.payout.earnedMonth,
-    `#${out.payout.id} adjusting txn #${txnId} → ${out.payout.status}`);
-  res.json({ payout: shape(out.payout), txn: out.txn });
+    `#${out.payout.id} correcting txn #${txnId}${moved} → ${out.payout.status}`);
+  res.json({ payout: shape(out.payout), txn: out.txn, movedFrom: out.movedFrom, movedTo: out.movedTo });
 }));
 
 router.get("/payouts/:id/txns", auth, requireRead, validate({ params: S.idParam }), ah(async (req, res) => {

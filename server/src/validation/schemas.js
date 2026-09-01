@@ -156,6 +156,8 @@ const adjust = z.object({
    */
   setReceived: amount.optional(),
   setDeduction: amount.optional(),
+  // the date this entry should have carried; it moves the entry rather than posting one
+  setDate: optionalDate,
   deductionReason: z.enum(["", "validation", "scrub", "chargeback", "fx", "other"]).optional(),
   carriedForward: signedAmount.optional(),
   carriedToMonth: optionalMonth,

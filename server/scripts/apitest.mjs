@@ -227,6 +227,40 @@ async function main() {
   // put the dataset back: every count below this line is asserted against a fixed total
   await admin.del(`/api/payouts/${typo.data.id}?confirm=1`);
 
+  /*
+   * A wrong date is not a wrong amount. It decides which month the cash counts in —
+   * every cash-basis figure in the app reads it — and no adjusting entry can move it,
+   * because there is no arithmetic between two dates. So it moves the entry, and the
+   * audit line is the record that it moved.
+   */
+  const misdated = await admin.post("/api/payouts", { network: "AdCombo", vertical: "CPS", earnedMonth: "2026-06", amountExpected: 800 });
+  await admin.post(`/api/payouts/${misdated.data.id}/reconcile`, { date: "2026-07-02", amountReceived: 800 });
+  const mtx = (await admin.get(`/api/payouts/${misdated.data.id}/txns`)).data[0];
+  eq("the cash lands in the month it was dated", (await admin.get("/api/payouts/reports/received/2026-07")).data.total.received >= 800, true);
+
+  const moveOnly = await admin.post(`/api/payouts/${misdated.data.id}/adjust`, {
+    txnId: mtx.id, setReceived: 800, setDate: "2026-06-28",
+  });
+  eq("a date correction says what it moved", [moveOnly.data.movedFrom, moveOnly.data.movedTo], ["2026-07-02", "2026-06-28"]);
+  eq("...and posts no entry, because there is nothing to post", moveOnly.data.txn, null);
+  eq("the ledger still has the one entry", (await admin.get(`/api/payouts/${misdated.data.id}/txns`)).data.length, 1);
+  eq("...carrying the corrected date", (await admin.get(`/api/payouts/${misdated.data.id}/txns`)).data[0].date, "2026-06-28");
+  eq("the cash moved months with it", (await admin.get("/api/payouts/reports/received/2026-06")).data.total.received, 800);
+  eq("...and left the month it was in", (await admin.get("/api/payouts/reports/received/2026-07")).data.total.received, 0);
+
+  /* Date and figures together: the entry moves, and the correction is dated to match. */
+  const both = await admin.post(`/api/payouts/${misdated.data.id}/adjust`, {
+    txnId: mtx.id, setReceived: 500, setDate: "2026-06-10",
+  });
+  eq("a combined correction moves and corrects", both.data.payout.amountReceived, 500);
+  eq("...and the adjusting entry sits on the new date, not today", both.data.txn.date, "2026-06-10");
+
+  const nothing = await admin.post(`/api/payouts/${misdated.data.id}/adjust`, { txnId: mtx.id, setReceived: 500, setDate: "2026-06-10" });
+  eq("correcting nothing is refused rather than written as zeroes", nothing.status, 400);
+  eq("...and says so", nothing.data.error, "nothing_to_correct");
+
+  await admin.del(`/api/payouts/${misdated.data.id}?confirm=1`);
+
   console.log("\n=== payouts: write-off ===");
   const wo = await admin.post(`/api/payouts/${p3.data.id}/writeoff`, { reason: "network went dark" });
   eq("written off", wo.data.status, "written_off");
