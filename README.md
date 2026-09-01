@@ -106,6 +106,19 @@ restart the server before it.
 `npm --prefix client run build` writes `client/dist`, which the API serves itself —
 so a deploy is the one Node process.
 
+`client/dist` is a build artefact and is not in git. That is worth saying plainly,
+because `git pull` on a server updates the API and leaves the screens exactly as
+they were: the symptom is a deploy where a fix that is plainly in the code has no
+effect in the browser, and where two servers on the same commit disagree about what
+the app looks like. **Every deploy is pull, then build, then restart:**
+
+```bash
+git pull && npm ci --prefix server && npm ci --prefix client && npm --prefix client run build
+```
+
+then restart the API process. A host that runs its own build command on each deploy
+(Render and the like) does this already; a VPS you pull to by hand does not.
+
 Three things must be set in the environment, and the server refuses to start without
 them rather than falling back to something weaker:
 
