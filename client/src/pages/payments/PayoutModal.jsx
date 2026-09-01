@@ -206,6 +206,15 @@ export default function PayoutModal({ payout, networks, onClose, onSaved }) {
             onChange={(e) => { setForm({ ...form, expectedDate: e.target.value }); setTouchedDate(true); }}
           />
         </Field>
+        {/*
+          Note sits here rather than at the foot of the form: the row Expected date is
+          on had an empty right-hand cell, because the sentence below it spans the
+          full width and starts a new row. Filling it costs nothing and saves the form
+          a line.
+        */}
+        <Field label="Note">
+          <input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
+        </Field>
 
         {form.earnedMonth && form.expectedDate && (
           <div className="muted full" style={{ fontSize: 12, marginTop: -4, marginBottom: 12 }}>
@@ -229,11 +238,9 @@ export default function PayoutModal({ payout, networks, onClose, onSaved }) {
           </div>
         </Field>
         {/*
-          An empty cell holds the second column when no method is ticked. Without it
-          the grid pulls the next field up beside the checkboxes, so Note would sit
-          in the right-hand column until you tick a box and then jump back down —
-          the row below reshuffling itself is far more jarring than the few pixels
-          this row grows by when the input appears.
+          Nothing follows this row now that Note has moved up, so an unticked method
+          simply leaves the cell beside it empty — there is no field below for the
+          grid to pull up into it.
         */}
         {payMethod ? (
           PAY_METHODS.filter(([key]) => key === payMethod).map(([key, , inputLabel, placeholder]) => (
@@ -246,12 +253,7 @@ export default function PayoutModal({ payout, networks, onClose, onSaved }) {
               />
             </Field>
           ))
-        ) : <div />}
-
-        <Field label="Note">
-          <input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
-        </Field>
-        <div />
+        ) : null}
       </div>
 
       {payout && (
