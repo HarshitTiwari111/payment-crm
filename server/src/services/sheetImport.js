@@ -29,12 +29,29 @@ const { logAudit } = require("../utils/audit");
  * @param scopeUser  whose verticals bound the run; the actor unless an admin is
  *                   reading the app as someone else, in which case the lens
  *                   narrows this the same way it narrows every other write
+ * @param vertical   what to file rows under when the sheet does not say. Most of
+ *                   these sheets have no vertical column — a sheet is kept per
+ *                   vertical, so the answer is the same for every row in it and
+ *                   the person importing already knows it. Asked once here
+ *                   instead of demanded as a column they would have to add.
  * @param commit     false to report what would happen and write nothing
  */
-async function run(url, actor, { commit = false, scopeUser = null } = {}) {
+async function run(url, actor, { commit = false, scopeUser = null, vertical = "" } = {}) {
   const { headers, columns, rows } = await sheet.read(url);
   // null for an admin: no restriction, and rows with no vertical are theirs to file
   const allowed = await verticalsInScope(scopeUser || actor);
+
+  /*
+   * The fallback is a view of the importer's own scope, never a way past it: an
+   * admin may file under anything, and anyone else only under what they hold.
+   */
+  const fallback = String(vertical || "").trim();
+  if (fallback && allowed && !allowed.has(normVert(fallback))) {
+    const err = new Error("forbidden_vertical");
+    err.code = "forbidden_vertical";
+    err.status = 403;
+    throw err;
+  }
 
   /*
    * Which of the sheet's columns were understood, and which were ignored. Shown
@@ -69,11 +86,17 @@ async function run(url, actor, { commit = false, scopeUser = null } = {}) {
      * Outside this account's verticals — including a row with none at all, which
      * would import into a payout its own importer could not then see.
      */
-    const vert = row.payout.vertical;
+    // the sheet's own vertical when it has one, else the one chosen for this run
+    const vert = row.payout.vertical || fallback;
+    row.payout.vertical = vert;
     if (allowed && !(vert && allowed.has(normVert(vert)))) {
       counts.skippedScope++;
       outOfScope.add(vert || "(no vertical)");
-      results.push({ ...summary(row), outcome: "outofscope", why: vert ? `${vert} is not yours` : "no vertical" });
+      results.push({
+        ...summary(row),
+        outcome: "outofscope",
+        why: vert ? `${vert} is not yours` : "no vertical — choose one above",
+      });
       continue;
     }
 

@@ -56,7 +56,8 @@ router.put("/sheet", auth, canImport, ah(async (req, res) => {
  */
 router.post("/sheet/preview", auth, canImport, ah(async (req, res) => {
   const url = String((req.body || {}).url || "").trim() || (await source()).url;
-  const out = await sheetImport.run(url, req.user, { commit: false, scopeUser: req.scopeUser });
+  const vertical = String((req.body || {}).vertical || "").trim();
+  const out = await sheetImport.run(url, req.user, { commit: false, scopeUser: req.scopeUser, vertical });
   res.json({ ...out, csvUrl: sheet.toCsvUrl(url) });
 }));
 
@@ -66,7 +67,8 @@ router.post("/sheet/import", auth, canImport, ah(async (req, res) => {
 
   let out;
   try {
-    out = await sheetImport.run(url, req.user, { commit: true, scopeUser: req.scopeUser });
+    const vertical = String((req.body || {}).vertical || "").trim();
+    out = await sheetImport.run(url, req.user, { commit: true, scopeUser: req.scopeUser, vertical });
   } catch (e) {
     /*
      * A failed run is recorded too. "Last synced 3 days ago" is only useful if a

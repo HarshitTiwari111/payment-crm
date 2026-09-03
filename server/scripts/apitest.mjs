@@ -595,6 +595,45 @@ async function main() {
   eq("an import that can bring in nothing writes nothing", (await nut.post("/api/sheet/import", { url: SHEET })).data.counts.imported, 0);
   eq("...and the sheet's rows are still not here", (await admin.get("/api/payouts?network=SheetNet")).data.total, 0);
 
+  /*
+   * A sheet with no vertical column at all — which is what these sheets look like,
+   * because one is kept per vertical and nobody writes the same word on every row.
+   * The importer says which vertical once instead of being sent away to add a
+   * column to a file other people are working in.
+   */
+  const NO_VERT = [
+    "Camapign Name,Campaign Name,Ad Cost (Expense),Overall Revenue,Actual Revenue,Profit,Network name,Month,Received Amount,Bank Account,Payment Recived Date",
+    "NV_ONE,Etsy Apm Am,$89.34,$280.21,$252.19,163,PlainNet,May'26,,,",
+    "NV_TWO,Agoda Apm Sr,$325.91,$357.30,$250.11,-76,PlainNet,May'26,,,",
+  ].join("\n");
+  const plain = createServer((rq, rs) => {
+    rs.writeHead(200, { "Content-Type": "text/csv" });
+    rs.end(NO_VERT);
+  });
+  await new Promise((r) => plain.listen(4412, "127.0.0.1", r));
+  const PLAIN = "http://127.0.0.1:4412/sheet.csv";
+
+  const unfiled = await cps.post("/api/sheet/preview", { url: PLAIN });
+  eq("with no vertical anywhere, nothing can be filed", unfiled.data.counts.imported, 0);
+  ok("...and it says what to do about it", unfiled.data.results.every((r) => /choose one above/.test(r.why)));
+
+  const filed = await cps.post("/api/sheet/preview", { url: PLAIN, vertical: "CPS" });
+  eq("choosing one files every row under it", filed.data.counts.imported, 2);
+  ok("...on the rows themselves", filed.data.results.filter((r) => r.outcome === "import").every((r) => r.vertical === "CPS"));
+
+  /* The choice is a view of the caller's own scope, never a way around it. */
+  eq("a manager cannot file under a vertical they do not hold", (await cps.post("/api/sheet/preview", { url: PLAIN, vertical: "Nutra" })).status, 403);
+
+  const filedIn = await cps.post("/api/sheet/import", { url: PLAIN, vertical: "CPS" });
+  eq("the import files them the same way", filedIn.data.counts.imported, 2);
+  const landed = (await cps.get("/api/payouts?network=PlainNet&limit=20")).data;
+  eq("...and the manager who imported them can see them", landed.total, 2);
+  ok("every one carries the chosen vertical", landed.items.every((p) => p.vertical === "CPS"));
+  ok("the campaign is its name, not its code", landed.items.some((p) => p.campaign === "Etsy Apm Am"));
+
+  for (const q of landed.items) await admin.del(`/api/payouts/${q.id}?confirm=1`);
+  await new Promise((r) => plain.close(r));
+
   const state = await admin.get("/api/sheet");
   eq("the last run is remembered", state.data.lastResult, "ok");
   ok("...with who ran it", !!state.data.lastRunBy, state.data.lastRunBy);

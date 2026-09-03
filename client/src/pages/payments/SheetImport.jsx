@@ -11,6 +11,7 @@
  */
 import React, { useEffect, useState } from "react";
 import { api } from "../../api/client";
+import { useApp } from "../../context/AppContext";
 import { Modal, Field, Loading } from "../../components/ui";
 import { useToast } from "../../components/Toast";
 import { money, monthLabel } from "../../api/format";
@@ -31,8 +32,11 @@ const OUTCOME = {
 
 export default function SheetImport({ onClose, onImported }) {
   const toast = useToast();
+  const { pickableVerts } = useApp();
+  const verts = pickableVerts();
   const [source, setSource] = useState(null);
   const [url, setUrl] = useState("");
+  const [vertical, setVertical] = useState("");
   const [preview, setPreview] = useState(null);
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState(null);
@@ -56,7 +60,7 @@ export default function SheetImport({ onClose, onImported }) {
   const doPreview = async () => {
     setErr(null); setPreview(null); setBusy("preview");
     try {
-      setPreview(await api.post("/api/sheet/preview", { url }));
+      setPreview(await api.post("/api/sheet/preview", { url, vertical }));
     } catch (e) { fail(e); }
     setBusy("");
   };
@@ -64,7 +68,7 @@ export default function SheetImport({ onClose, onImported }) {
   const doImport = async () => {
     setErr(null); setBusy("import");
     try {
-      const r = await api.post("/api/sheet/import", { url });
+      const r = await api.post("/api/sheet/import", { url, vertical });
       setSource(r.source);
       setPreview(r);
       onImported();
@@ -109,6 +113,24 @@ export default function SheetImport({ onClose, onImported }) {
             one all work. This server has no Google account of its own, so it opens
             the link the way a stranger would: the sheet has to be readable by anyone
             who has it.
+          </div>
+
+          {/*
+            Most of these sheets have no vertical column — a sheet is kept per
+            vertical, so the answer is the same for every row and the person importing
+            already knows it. Asked once here rather than demanded as a column they
+            would have to go and add. A sheet that does name a vertical per row keeps
+            its own; this only fills the gaps.
+          */}
+          <Field label="File rows under">
+            <select value={vertical} onChange={(e) => { setVertical(e.target.value); setPreview(null); }}>
+              <option value="">— whatever the sheet says —</option>
+              {verts.map((v) => <option key={v} value={v}>{v}</option>)}
+            </select>
+          </Field>
+          <div className="hint">
+            Used for any row whose own vertical is blank. Leave it as it is if the
+            sheet has a vertical column of its own.
           </div>
 
           {source.lastRunAt && (

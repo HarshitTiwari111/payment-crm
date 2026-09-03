@@ -79,7 +79,7 @@ password `changeme123`. Change it from the avatar menu before anything else.
 npm --prefix server test
 ```
 
-256 checks driven over real HTTP with real cookies — sessions and refresh, the role
+265 checks driven over real HTTP with real cookies — sessions and refresh, the role
 gates, vertical scoping, the payout ledger (partial payment, cut, carry-forward,
 adjustment, write-off), every report, the View team lens and the attempts to abuse
 it, and the log — including a manager being refused it.
@@ -161,10 +161,17 @@ included. What it looks for:
 | Actual Revenue | what is owed | yes, and above zero |
 | an id column, else a spare campaign column, else campaign + network + month | how a re-run recognises the row | — |
 | Campaign Name | the campaign | no |
-| Vertical, Sub-vertical | where it is filed | for a manager, yes — a row with none, or with one they do not hold, is theirs to leave |
+| Vertical, Sub-vertical | where it is filed | no — pick one in **File rows under** instead, which fills any row the sheet leaves blank |
 | Ad Cost, Overall Revenue | the spend side | no |
 | Received Amount, Payment Received Date | a reconciliation, posted with the payout | no |
 | Bank Account | how it is paid | no |
+
+Most of these sheets have no vertical column, because one sheet is kept per
+vertical and nobody writes the same word on every row. **File rows under** is that
+answer, given once: it fills in any row whose own vertical is blank, and it offers
+only the verticals the person importing actually holds — it is a view of their
+scope, never a way around it. A sheet that does name a vertical per row keeps its
+own.
 
 Profit is never imported. It is revenue less cost, worked out on read, so a column
 of it in the sheet is left alone rather than stored a second time.
