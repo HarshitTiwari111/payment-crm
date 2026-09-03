@@ -157,6 +157,37 @@ async function main() {
   const reverted = await admin.put(`/api/payouts/${p1.data.id}`, { network: "AdCombo", vertical: "CPS", earnedMonth: "2026-08", amountExpected: 12500, netTerms: 30, campaign: "CPS-Aug" });
   eq("amount restored", reverted.data.amountExpected, 12500);
 
+  /*
+   * The spend side. These come off the same sheet row as the revenue, and the
+   * numbers below are that sheet's first two rows — one that made money and one
+   * that lost it — so the arithmetic can be checked against what it already says.
+   */
+  const spend = await admin.post("/api/payouts", {
+    network: "AdCombo", vertical: "CPS", earnedMonth: "2026-05",
+    overallRevenue: 280.21, amountExpected: 252.19, adCost: 89.34,
+    externalId: "EST_APM|AdCombo|2026-05",
+  });
+  eq("reported revenue is kept beside the confirmed one", spend.data.overallRevenue, 280.21);
+  eq("...and they are allowed to differ", spend.data.amountExpected, 252.19);
+  eq("ad cost is stored", spend.data.adCost, 89.34);
+  eq("profit is derived, not typed", spend.data.profit, 162.85);
+  eq("the row it came from is remembered", spend.data.externalId, "EST_APM|AdCombo|2026-05");
+
+  const loss = await admin.post("/api/payouts", {
+    network: "AdCombo", vertical: "CPS", earnedMonth: "2026-05", amountExpected: 250.11, adCost: 325.91,
+  });
+  eq("a campaign that cost more than it made reports a loss", loss.data.profit, -75.8);
+
+  const cheaper = await admin.put(`/api/payouts/${spend.data.id}`, { adCost: 52.19 });
+  eq("editing the cost re-derives the profit", cheaper.data.profit, 200);
+  eq("...without touching what was owed", cheaper.data.amountExpected, 252.19);
+
+  const noCost = await admin.post("/api/payouts", { network: "AdCombo", vertical: "CPS", earnedMonth: "2026-05", amountExpected: 100 });
+  eq("cost is optional, and absent means zero", noCost.data.adCost, 0);
+  eq("...so profit is the whole amount", noCost.data.profit, 100);
+
+  for (const r of [spend, loss, noCost]) await admin.del(`/api/payouts/${r.data.id}?confirm=1`);
+
   console.log("\n=== payouts: the ledger ===");
   const partial = await admin.post(`/api/payouts/${p1.data.id}/reconcile`, { date: "2026-09-28", amountReceived: 5000 });
   eq("partial payment recorded", partial.status, 200);

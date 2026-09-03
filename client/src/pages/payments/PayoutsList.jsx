@@ -214,7 +214,9 @@ export default function PayoutsList() {
               <thead>
                 <tr>
                   <th>Campaign</th><th className="nowrap">Network</th><th>Vertical</th><th className="nowrap">Earned</th>
-                  <th className="right">Expected</th><th className="right">Received</th>
+                  <th className="right nowrap">Ad cost</th>
+                  <th className="right">Expected</th><th className="right">Profit</th>
+                  <th className="right">Received</th>
                   <th className="right">Cut</th><th className="right">Pending</th>
                   <th className="nowrap">Due</th><th>Status</th><th className="actioncol">Action</th>
                 </tr>
@@ -237,7 +239,21 @@ export default function PayoutsList() {
                     <td className="nowrap"><b>{p.network}</b></td>
                     <td>{p.vertical ? <span className="pill n">{p.vertical}</span> : <span className="muted">—</span>}</td>
                     <td className="muted nowrap">{monthLabel(p.earnedMonth)}</td>
-                    <td className="num"><Money n={p.amountExpected} cur={p.currency} /></td>
+                    <td className="num muted">
+                      {p.adCost ? <Money n={p.adCost} cur={p.currency} /> : <span className="muted">—</span>}
+                    </td>
+                    <td className="num">
+                      <Money n={p.amountExpected} cur={p.currency} />
+                      {/* what the campaign claimed, when it is not what the network agreed */}
+                      {p.overallRevenue > 0 && p.overallRevenue !== p.amountExpected && (
+                        <div className="muted nowrap" style={{ fontSize: 10.5 }}>
+                          of {money(p.overallRevenue, p.currency)} reported
+                        </div>
+                      )}
+                    </td>
+                    <td className="num" style={{ color: p.adCost ? (p.profit >= 0 ? "var(--green)" : "var(--red)") : undefined }}>
+                      {p.adCost ? <Money n={p.profit} cur={p.currency} /> : <span className="muted">—</span>}
+                    </td>
                     <td className="num" style={{ color: p.amountReceived ? "var(--green)" : undefined }}>
                       <Money n={p.amountReceived} cur={p.currency} />
                     </td>

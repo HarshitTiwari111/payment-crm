@@ -41,6 +41,32 @@ const payoutSchema = new mongoose.Schema(
     netTerms: { type: Number, default: null },                    // days, snapshot of the network's terms
     currency: { type: String, default: "USD", uppercase: true },
 
+    /*
+     * The spend side.
+     *
+     * This app tracks what a network owes and whether it arrived; what a campaign
+     * cost to run is a different question. The two live together because they live
+     * together in the sheet these figures are entered from, and a payout that says
+     * what came in without saying what it cost to get is only half the row.
+     *
+     * `overallRevenue` is what the campaign reported; `amountExpected` is what the
+     * network actually confirmed and will pay. They differ, and the difference is
+     * the point — one is a hope and the other is a receivable.
+     *
+     * Profit is not stored. It is actual revenue minus ad cost, and a stored copy of
+     * a subtraction is a second version of the truth waiting to disagree with the
+     * first — see profitOf() in services/payouts.
+     */
+    adCost: { type: Number, default: 0 },
+    overallRevenue: { type: Number, default: 0 },
+
+    /*
+     * The row this payout came from, when it came from a sheet rather than a person.
+     * It is how a re-sync recognises what it already imported; without it every run
+     * would create the whole sheet again.
+     */
+    externalId: { type: String, default: "", index: true },
+
     status: {
       type: String,
       enum: ["pending", "partial", "received", "overdue", "written_off"],

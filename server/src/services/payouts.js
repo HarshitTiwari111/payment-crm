@@ -112,6 +112,20 @@ function overpaidOf(p) {
   return round2(Math.max(0, settled - (p.amountExpected || 0)));
 }
 
+/*
+ * What the campaign made: what the network confirmed it owes, less what it cost
+ * to run. Derived rather than stored, because a saved copy of a subtraction is a
+ * second version of the truth — edit the cost and the two disagree, and only one
+ * of them is right.
+ *
+ * It is measured against the CONFIRMED figure, not the reported one: overall
+ * revenue is what a campaign claimed, and profit on money that was never approved
+ * is not profit.
+ */
+function profitOf(p) {
+  return round2((p.amountExpected || 0) - (p.adCost || 0));
+}
+
 /* ------------------------------------------------------------- recalc */
 
 /**
@@ -234,6 +248,9 @@ async function createPayout(data, actor, session = null) {
     subcategory: vertical ? subcategory : "",
     earnedMonth,
     amountExpected: round2(data.amountExpected),
+    adCost: round2(data.adCost),
+    overallRevenue: round2(data.overallRevenue),
+    externalId: String(data.externalId || "").trim(),
     expectedDate,
     netTerms: netTerms == null ? null : netTerms,
     currency,
@@ -526,7 +543,7 @@ async function scanOverdue() {
 
 module.exports = {
   expectedDateFrom, normalizeExpectedDate,
-  computeStatus, isOverdue, pendingOf, overpaidOf,
+  computeStatus, isOverdue, pendingOf, overpaidOf, profitOf,
   recalcPayout, createPayout, reconcile, adjust, payTo,
   writeOff, unWriteOff, scanOverdue, registerNames, escapeRe,
 };

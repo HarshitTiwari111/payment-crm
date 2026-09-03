@@ -66,6 +66,10 @@ function shape(p) {
     netTerms: p.netTerms,
     currency: p.currency || "USD",
     amountExpected: round2(p.amountExpected),
+    adCost: round2(p.adCost),
+    overallRevenue: round2(p.overallRevenue),
+    profit: svc.profitOf(p),
+    externalId: p.externalId || "",
     amountReceived: round2(p.amountReceived),
     amountCut: round2(p.amountCut),
     amountCarried: round2(p.amountCarried),
@@ -303,6 +307,8 @@ router.put("/payouts/:id", auth, requireWrite, validate({ body: S.updatePayout, 
   if (b.network !== undefined && String(b.network).trim()) p.network = String(b.network).trim();
   if (b.earnedMonth !== undefined && /^\d{4}-\d{2}$/.test(String(b.earnedMonth))) p.earnedMonth = String(b.earnedMonth);
   if (b.amountExpected !== undefined) p.amountExpected = round2(b.amountExpected);
+  if (b.adCost !== undefined) p.adCost = round2(b.adCost);
+  if (b.overallRevenue !== undefined) p.overallRevenue = round2(b.overallRevenue);
   if (b.netTerms !== undefined) p.netTerms = b.netTerms === "" || b.netTerms == null ? null : Number(b.netTerms);
   if (b.currency !== undefined && String(b.currency).trim()) p.currency = String(b.currency).trim().toUpperCase();
   if (b.note !== undefined) p.note = String(b.note).slice(0, 500);

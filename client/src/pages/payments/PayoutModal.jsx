@@ -47,6 +47,8 @@ export default function PayoutModal({ payout, networks, onClose, onSaved }) {
     subcategory: payout?.subcategory || "",
     earnedMonth: payout?.earnedMonth || curMonthStr(),
     amountExpected: payout?.amountExpected || "",
+    adCost: payout?.adCost || "",
+    overallRevenue: payout?.overallRevenue || "",
     netTerms: payout?.netTerms == null ? "" : String(payout.netTerms),
     expectedDate: payout?.expectedDate || "",
     currency: payout?.currency || "USD",
@@ -76,6 +78,14 @@ export default function PayoutModal({ payout, networks, onClose, onSaved }) {
   }, []);
 
   /** The terms actually in play: the ones picked here, else the network's default. */
+  /* Shown, not stored — the server derives it the same way. */
+  const profitPreview = (() => {
+    const rev = Number(form.amountExpected), cost = Number(form.adCost) || 0;
+    if (!isFinite(rev) || form.amountExpected === "") return "—";
+    const n = Math.round((rev - cost) * 100) / 100;
+    return (n < 0 ? "−" : "") + (form.currency || "USD") + " " + Math.abs(n).toLocaleString();
+  })();
+
   const effectiveTerms = useMemo(() => {
     if (form.netTerms !== "") return Number(form.netTerms);
     const n = networks.find((x) => x.name.toLowerCase() === form.network.trim().toLowerCase());
@@ -103,6 +113,8 @@ export default function PayoutModal({ payout, networks, onClose, onSaved }) {
     const body = {
       ...form,
       amountExpected: Number(form.amountExpected),
+      adCost: Number(form.adCost) || 0,
+      overallRevenue: Number(form.overallRevenue) || 0,
       netTerms: form.netTerms === "" ? null : Number(form.netTerms),
       // only the chosen method travels; the other two boxes were just scratch space
       payMethod,
@@ -187,8 +199,28 @@ export default function PayoutModal({ payout, networks, onClose, onSaved }) {
           <input type="month" value={form.earnedMonth} onChange={(e) => setForm({ ...form, earnedMonth: e.target.value })} />
         </Field>
 
-        <Field label="Amount expected (revenue owed)">
+        {/*
+          Three money columns from the sheet, in the order it reads them: what the
+          campaign reported, what the network actually confirmed, and what it cost.
+          Only the middle one is a receivable — the other two are there so a payout
+          says what it earned AND what it took to earn it.
+        */}
+        <Field label="Overall revenue (reported)">
+          <input type="number" step="any" value={form.overallRevenue} placeholder="0.00"
+            onChange={(e) => setForm({ ...form, overallRevenue: e.target.value })} />
+        </Field>
+        <Field label="Actual revenue (owed)">
           <input type="number" step="any" value={form.amountExpected} onChange={(e) => setForm({ ...form, amountExpected: e.target.value })} />
+        </Field>
+
+        <Field label="Ad cost (expense)">
+          <input type="number" step="any" value={form.adCost} placeholder="0.00"
+            onChange={(e) => setForm({ ...form, adCost: e.target.value })} />
+        </Field>
+        <Field label="Profit">
+          {/* never typed: it is actual revenue minus ad cost, and typing it would
+              let the form hold a number the arithmetic disagrees with */}
+          <input value={profitPreview} readOnly tabIndex={-1} style={{ opacity: 0.75 }} />
         </Field>
         <Field label="Currency">
           <input value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value.toUpperCase() })} maxLength={4} />

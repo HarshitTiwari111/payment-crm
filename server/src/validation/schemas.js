@@ -114,6 +114,10 @@ const createPayout = z.object({
   subcategory: text(60).optional(),
   earnedMonth: month,
   amountExpected: amount.refine((v) => v > 0, { message: "Enter the amount owed." }),
+  // the spend side, and the row this came from when it came from a sheet
+  adCost: amount.optional(),
+  overallRevenue: amount.optional(),
+  externalId: text(120).optional(),
   expectedDate: optionalDate,
   netTerms: z.union([z.coerce.number().int().min(0).max(365), z.null(), z.literal("")]).optional(),
   currency: z.string().max(4).optional(),
