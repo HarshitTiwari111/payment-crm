@@ -42,7 +42,7 @@ export default function PayoutsList() {
    * has to be able to show every month; the header picker always holds one, because
    * the Dashboard and Report cannot work without it.
    */
-  const { month, verticalFilter, subcatFilter, isAdmin, refresh, reloadKey } = useApp();
+  const { month, verticalFilter, subcatFilter, refresh, reloadKey } = useApp();
   const toast = useToast();
   const confirm = useConfirm();
   const [writingOff, setWritingOff] = useState(null);
@@ -63,14 +63,14 @@ export default function PayoutsList() {
   const openNew = useCallback(() => setEditing({}), []);
   const openSheet = useCallback(() => setSheet(true), []);
   /*
-   * Importing writes payouts across every vertical in the sheet, which is exactly
-   * what a manager is scoped out of doing — so the button is an admin's, and the
-   * route behind it checks again.
+   * Both roles: keeping the sheet is the job of whoever keeps the sheet. A run is
+   * bounded by the caller's own verticals, and what it leaves behind is named on
+   * screen rather than dropped.
    */
   useRegisterPageActions(useMemo(() => [
-    ...(isAdmin ? [{ label: "From sheet", onClick: openSheet, variant: "ghost" }] : []),
+    { label: "From sheet", onClick: openSheet, variant: "ghost" },
     { label: "Add payout", onClick: openNew },
-  ], [isAdmin, openSheet, openNew]));
+  ], [openSheet, openNew]));
 
   const load = useCallback(async () => {
     setRes(null);

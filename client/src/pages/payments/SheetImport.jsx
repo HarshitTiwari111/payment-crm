@@ -25,6 +25,7 @@ const FAILURES = {
 const OUTCOME = {
   import: { label: "will import", cls: "g" },
   already: { label: "already here", cls: "n" },
+  outofscope: { label: "not yours", cls: "r" },
   skipped: { label: "skipped", cls: "a" },
 };
 
@@ -158,6 +159,7 @@ export default function SheetImport({ onClose, onImported }) {
                 <span className="pill g">{counts.imported} to import</span>
                 {counts.reconciled > 0 && <span className="pill g">{counts.reconciled} already paid</span>}
                 {counts.skippedExisting > 0 && <span className="pill n">{counts.skippedExisting} already here</span>}
+                {counts.skippedScope > 0 && <span className="pill r">{counts.skippedScope} not yours</span>}
                 {counts.skippedBad > 0 && <span className="pill a">{counts.skippedBad} unusable</span>}
               </div>
 
@@ -192,6 +194,19 @@ export default function SheetImport({ onClose, onImported }) {
                   </tbody>
                 </table>
               </div>
+
+              {/*
+                Said plainly and by name. A run that quietly brought in half a sheet
+                looks exactly like one that brought in all of it, and the missing half
+                is noticed weeks later when a total does not add up.
+              */}
+              {counts.skippedScope > 0 && (
+                <div className="hint warn">
+                  {counts.skippedScope} row{counts.skippedScope === 1 ? " is" : "s are"} in{" "}
+                  {preview.outOfScope.join(", ")} — not verticals on your account, so they are
+                  left for whoever holds them. Nothing about them changes here.
+                </div>
+              )}
 
               <div className="hint">
                 A row already imported is left exactly as it is. Once a payment has been

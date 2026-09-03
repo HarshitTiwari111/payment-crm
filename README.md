@@ -18,7 +18,7 @@ Two, and only two.
 | Delete a network / a vertical | yes | no |
 | Users screen | yes | not shown, and blocked server-side |
 | Log | yes | not shown, and blocked server-side — their own sign-ins, yes |
-| Import from a sheet | yes | no — one run writes payouts across every vertical in it |
+| Import from a sheet | yes, all of it | yes, the rows in their own verticals — the rest are listed, not dropped |
 
 A manager's verticals *are* their permissions, which is why only an admin edits
 accounts — granting yourself a vertical would leave the scoping decorative. Every
@@ -79,7 +79,7 @@ password `changeme123`. Change it from the avatar menu before anything else.
 npm --prefix server test
 ```
 
-244 checks driven over real HTTP with real cookies — sessions and refresh, the role
+252 checks driven over real HTTP with real cookies — sessions and refresh, the role
 gates, vertical scoping, the payout ledger (partial payment, cut, carry-forward,
 adjustment, write-off), every report, the View team lens and the attempts to abuse
 it, and the log — including a manager being refused it.
@@ -135,9 +135,15 @@ credentials. Unset means none, which is right for the single-process deploy abov
 
 ## Importing from a sheet
 
-Payout → **From sheet**, admin only. Paste the link to a Google Sheet, read it, see
-what it would do, then import. Nothing is written until the second click, and the
-preview is the same read the import performs — reported instead of applied.
+Payout → **From sheet**. Paste the link to a Google Sheet, read it, see what it
+would do, then import. Nothing is written until the second click, and the preview
+is the same read the import performs — reported instead of applied.
+
+Both roles, because keeping the sheet is the job of whoever keeps it. The scoping
+is in what a run brings in rather than in who may open it: a manager imports the
+rows in their own verticals, and the rest are counted and named vertical by
+vertical on the screen. Half a sheet imported would otherwise look exactly like
+all of it, and the missing half is noticed weeks later when a total is wrong.
 
 The server has no Google account of its own. It opens the link the way a stranger
 would, so the sheet has to be readable by anyone holding it: **Share → Anyone with
@@ -155,7 +161,7 @@ included. What it looks for:
 | Actual Revenue | what is owed | yes, and above zero |
 | an id column, else campaign + network + month | how a re-run recognises the row | — |
 | Campaign Name | the campaign | no |
-| Vertical, Sub-vertical | where it is filed | no, but a payout without a vertical is admin-only |
+| Vertical, Sub-vertical | where it is filed | for a manager, yes — a row with none, or with one they do not hold, is theirs to leave |
 | Ad Cost, Overall Revenue | the spend side | no |
 | Received Amount, Payment Received Date | a reconciliation, posted with the payout | no |
 | Bank Account | how it is paid | no |

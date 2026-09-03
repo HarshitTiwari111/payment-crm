@@ -555,14 +555,42 @@ async function main() {
   eq("a sheet needing a login is refused, not read as empty", shut.status, 400);
   eq("...with the reason the screen explains", shut.data.error, "sheet_not_public");
 
-  eq("a manager cannot import", (await cps.post("/api/sheet/preview", { url: SHEET })).status, 403);
-  eq("...nor read the settings", (await cps.get("/api/sheet")).status, 403);
+  /*
+   * Cleared first: an already-imported row is reported as already imported, which
+   * would hide the narrowing this next part is about.
+   */
+  for (const p of brought.items) await admin.del(`/api/payouts/${p.id}?confirm=1`);
+
+  /*
+   * A manager imports too — keeping the sheet is the job of whoever keeps it — but
+   * only the rows in their own verticals, and the rest are named rather than
+   * dropped. cps holds CPS; every row in this sheet is CPS, so a Nutra-only
+   * account is the one that shows the narrowing.
+   */
+  eq("a manager may open the import", (await cps.get("/api/sheet")).status, 200);
+  const cpsSees = await cps.post("/api/sheet/preview", { url: SHEET });
+  eq("...and read the sheet", cpsSees.status, 200);
+  eq("their own vertical is theirs to import", cpsSees.data.counts.skippedScope, 0);
+
+  const nutraOnly = await admin.post("/api/users", {
+    name: "Nutra Only", username: "nutraonly", password: "manager123", role: "manager", verticals: ["Nutra"],
+  });
+  ok("a manager holding none of the sheet's verticals exists", nutraOnly.status === 200);
+  const nut = session();
+  await nut.post("/api/login", { username: "nutraonly", password: "manager123" });
+  const nutSees = await nut.post("/api/sheet/preview", { url: SHEET });
+  eq("rows outside their verticals are not imported", nutSees.data.counts.imported, 0);
+  eq("...they are counted as out of scope", nutSees.data.counts.skippedScope, 3);
+  eq("...and the verticals are named, not just totalled", nutSees.data.outOfScope, ["CPS"]);
+  ok("every one of them says whose it is", nutSees.data.results
+    .filter((r) => r.outcome === "outofscope").every((r) => /not yours/.test(r.why)));
+  eq("an import that can bring in nothing writes nothing", (await nut.post("/api/sheet/import", { url: SHEET })).data.counts.imported, 0);
+  eq("...and the sheet's rows are still not here", (await admin.get("/api/payouts?network=SheetNet")).data.total, 0);
 
   const state = await admin.get("/api/sheet");
   eq("the last run is remembered", state.data.lastResult, "ok");
   ok("...with who ran it", !!state.data.lastRunBy, state.data.lastRunBy);
 
-  for (const p of brought.items) await admin.del(`/api/payouts/${p.id}?confirm=1`);
   await new Promise((r) => stub.close(r));
 
   console.log("");
