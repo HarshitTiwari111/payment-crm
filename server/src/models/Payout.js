@@ -78,6 +78,21 @@ const payoutSchema = new mongoose.Schema(
     amountCut: { type: Number, default: 0 },
     amountCarried: { type: Number, default: 0 },
 
+    /*
+     * The second pair of eyes.
+     *
+     * A manager records that money arrived; an admin confirms it actually landed in
+     * the account. The two are different claims and only one of them is checkable
+     * against a bank, so they are kept as different facts rather than one status.
+     *
+     * It is cleared whenever the ledger moves — see recalcPayout. What was verified
+     * was a figure, and once that figure changes the confirmation is about a number
+     * that no longer exists.
+     */
+    verifiedAt: { type: Date, default: null, index: true },
+    verifiedBy: { type: Number, default: null },
+    verifiedByName: { type: String, default: "" },
+
     // set when this payout was auto-created by a carry-forward; points at the origin
     parentId: { type: Number, default: null, index: true },
 

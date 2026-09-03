@@ -77,6 +77,8 @@ function shape(p) {
     overpaid: svc.overpaidOf(p),
     status: p.status,
     isOverdue: svc.isOverdue(p),
+    verifiedAt: p.verifiedAt || null,
+    verifiedByName: p.verifiedByName || "",
     parentId: p.parentId ?? null,
     payMethod: p.payMethod || "",
     payAccount: p.payAccount || "",
@@ -413,6 +415,56 @@ router.get("/payouts/:id/txns", auth, requireRead, validate({ params: S.idParam 
   if (!p) return res.status(404).json({ error: "not_found" });
   await assertVerticalAllowed(req.scopeUser, p.vertical);
   res.json(await PayoutTxn.find({ payoutId: p.id }).sort({ id: 1 }).lean());
+}));
+
+/* ------------------------------------------------------------- verifying */
+
+/*
+ * The second pair of eyes, and the only thing on this screen an admin can do that
+ * a manager cannot.
+ *
+ * A manager reconciling a payout is saying "the network says it paid". Verifying is
+ * saying "I have seen it in the account" — a different claim, made by the person who
+ * can actually look. Folding them into one status would mean the app could never
+ * show the gap between them, and that gap is the whole reason anyone checks.
+ *
+ * Only a payout with money on it can be verified. There is nothing to confirm about
+ * a payout still waiting, and a tick on one would read as "checked and fine".
+ */
+router.post("/payouts/:id/verify", auth, adminOnly, validate({ params: S.idParam }), ah(async (req, res) => {
+  const p = await Payout.findOne({ id: Number(req.params.id) });
+  if (!p) return res.status(404).json({ error: "not_found" });
+  if (!(p.amountReceived > 0)) return res.status(400).json({ error: "nothing_received" });
+
+  p.verifiedAt = new Date();
+  p.verifiedBy = req.user.id;
+  p.verifiedByName = req.user.name;
+  await p.save();
+
+  await logAudit(req.user, "payout_verified", null, p.earnedMonth,
+    `#${p.id} ${p.network} · ${p.currency} ${round2(p.amountReceived)} confirmed received`);
+  res.json(shape(p));
+}));
+
+/*
+ * Taking it back. An admin who ticked the wrong row has to be able to say so —
+ * without this the only way out is to disturb the ledger, which would clear the
+ * verification as a side effect and leave a correction on the books that never
+ * happened.
+ */
+router.post("/payouts/:id/unverify", auth, adminOnly, validate({ params: S.idParam }), ah(async (req, res) => {
+  const p = await Payout.findOne({ id: Number(req.params.id) });
+  if (!p) return res.status(404).json({ error: "not_found" });
+
+  const was = p.verifiedByName;
+  p.verifiedAt = null;
+  p.verifiedBy = null;
+  p.verifiedByName = "";
+  await p.save();
+
+  await logAudit(req.user, "payout_unverified", null, p.earnedMonth,
+    `#${p.id} ${p.network} · confirmation withdrawn${was ? ` (was ${was})` : ""}`);
+  res.json(shape(p));
 }));
 
 /* -------------------------------------------------------------- write-off */

@@ -370,6 +370,53 @@ async function main() {
   eq("manager cannot open another vertical's payout", (await mgr.get(`/api/payouts/${p1.data.id}`)).status, 403);
   eq("manager cannot reconcile another vertical's payout", (await mgr.post(`/api/payouts/${p1.data.id}/reconcile`, { amountReceived: 1 })).status, 403);
   await mgr.del(`/api/payouts/${mine.data.id}`);
+  console.log("");
+  console.log("=== confirming the money arrived ===");
+  /*
+   * Two different claims. A manager reconciling says the network told them it paid;
+   * an admin verifying says they have seen it in the account. Only the second is
+   * checkable against a bank, which is why it is a separate fact and a separate
+   * permission.
+   */
+  /* In the manager's own vertical, so this is their payout being confirmed. */
+  const conf = await admin.post("/api/payouts", { network: "AdCombo", vertical: "Pay Per Call", earnedMonth: "2026-07", amountExpected: 900 });
+  eq("nothing to confirm before anything arrives", (await admin.post(`/api/payouts/${conf.data.id}/verify`)).status, 400);
+  eq("...and it says why", (await admin.post(`/api/payouts/${conf.data.id}/verify`)).data.error, "nothing_received");
+
+  await admin.post(`/api/payouts/${conf.data.id}/reconcile`, { amountReceived: 900 });
+  eq("a manager cannot confirm their own reconciliation", (await mgr.post(`/api/payouts/${conf.data.id}/verify`)).status, 403);
+
+  const ticked = await admin.post(`/api/payouts/${conf.data.id}/verify`);
+  eq("an admin can", ticked.status, 200);
+  ok("...and it records who", ticked.data.verifiedByName === "Administrator", ticked.data.verifiedByName);
+  ok("...and when", !!ticked.data.verifiedAt);
+
+  /*
+   * The figure was what got confirmed. Move it and the confirmation is about a
+   * number that is no longer on the row, so it goes — leaving it would say the new
+   * figure had been checked when nobody has looked at it.
+   */
+  const cTxn = (await admin.get(`/api/payouts/${conf.data.id}/txns`)).data[0];
+  const moved = await admin.post(`/api/payouts/${conf.data.id}/adjust`, { txnId: cTxn.id, setReceived: 850 });
+  eq("correcting the ledger un-confirms it", moved.data.payout.verifiedAt, null);
+  eq("...so the new figure stands unchecked", (await admin.get(`/api/payouts/${conf.data.id}`)).data.payout.verifiedByName, "");
+
+  await admin.post(`/api/payouts/${conf.data.id}/verify`);
+  const undone = await admin.post(`/api/payouts/${conf.data.id}/unverify`);
+  eq("a confirmation can be withdrawn", undone.data.verifiedAt, null);
+  eq("a manager cannot withdraw one either", (await mgr.post(`/api/payouts/${conf.data.id}/unverify`)).status, 403);
+
+  /* A manager sees the answer; they just cannot be the one who gives it. */
+  await admin.post(`/api/payouts/${conf.data.id}/verify`);
+  const asMgr = await mgr.get(`/api/payouts/${conf.data.id}`);
+  eq("a manager can see it was confirmed", asMgr.data.payout.verifiedByName, "Administrator");
+
+  ok("both sides of it reach the log",
+    (await admin.get("/api/log/activity?action=payout_verified")).data.total > 0
+    && (await admin.get("/api/log/activity?action=payout_unverified")).data.total > 0);
+
+  await admin.del(`/api/payouts/${conf.data.id}?confirm=1`);
+
 
   console.log("\n=== view team ===");
   admin.viewAs(priya.data.id);

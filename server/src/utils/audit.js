@@ -32,6 +32,8 @@ const TG_LABELS = {
   payout_carry_created: "➡️ Carry-forward payout created",
   payout_writeoff: "⚠️ Payout written off",
   payout_overdue: "🔴 Payout OVERDUE",
+  payout_verified: "✅ Payment confirmed received",
+  payout_unverified: "↩️ Confirmation withdrawn",
   // security
   password_changed: "🔑 Password changed",
   sessions_revoked: "🚪 Signed out of all devices",
@@ -68,6 +70,8 @@ const ACTION_LABELS = {
   payout_carry_created: "Carry-forward payout created",
   payout_writeoff: "Payout written off",
   payout_overdue: "Payout went overdue",
+  payout_verified: "Payment confirmed received",
+  payout_unverified: "Confirmation withdrawn",
   password_changed: "Password changed",
   sessions_revoked: "Signed out of all devices",
   twofactor_enabled: "Two-factor turned on",

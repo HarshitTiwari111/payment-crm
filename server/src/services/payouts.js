@@ -151,10 +151,25 @@ async function recalcPayout(payoutId, session = null) {
   const payout = await pq;
   if (!payout) return null;
 
+  const before = [payout.amountReceived, payout.amountCut, payout.amountCarried].join("|");
+
   payout.amountReceived = round2(totals.received);
   payout.amountCut = round2(totals.cut);
   payout.amountCarried = round2(totals.carried);
   payout.status = computeStatus(payout);
+
+  /*
+   * A moved ledger un-verifies the payout. An admin confirmed a figure against a
+   * bank statement; the moment that figure changes, the confirmation is about a
+   * number that is no longer on the row, and leaving the tick there would say the
+   * new one had been checked when nobody has looked at it.
+   */
+  const after = [payout.amountReceived, payout.amountCut, payout.amountCarried].join("|");
+  if (payout.verifiedAt && after !== before) {
+    payout.verifiedAt = null;
+    payout.verifiedBy = null;
+    payout.verifiedByName = "";
+  }
   await payout.save({ session: session || undefined });
   return payout;
 }

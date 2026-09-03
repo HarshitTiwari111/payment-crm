@@ -16,6 +16,7 @@ Two, and only two.
 | Verticals visible | all | only those on their account |
 | Payouts, calendar, reports, networks | yes | yes, inside their verticals |
 | Delete a network / a vertical | yes | no |
+| Confirm a payment arrived | yes | no — they can see the answer, not give it |
 | Users screen | yes | not shown, and blocked server-side |
 | Log | yes | not shown, and blocked server-side — their own sign-ins, yes |
 | Import from a sheet | yes, all of it | yes, the rows in their own verticals — the rest are listed, not dropped |
@@ -39,7 +40,7 @@ too: while viewing as Priya, a new payout can only be filed in Priya's verticals
 ## Screens
 
 1. **Dashboard** — this month's position: outstanding, expected, received, cut, overdue.
-2. **Payout** — every payout, with filters, reconcile, adjust, write off.
+2. **Payout** — every payout, with filters, reconcile, adjust, write off, confirm.
 3. **Calendar** — what is due, month by month.
 4. **Report** — by earned month, by received month, network reliability, collection trend.
 5. **Network** — the partners who pay, and their default net terms.
@@ -79,7 +80,7 @@ password `changeme123`. Change it from the avatar menu before anything else.
 npm --prefix server test
 ```
 
-265 checks driven over real HTTP with real cookies — sessions and refresh, the role
+277 checks driven over real HTTP with real cookies — sessions and refresh, the role
 gates, vertical scoping, the payout ledger (partial payment, cut, carry-forward,
 adjustment, write-off), every report, the View team lens and the attempts to abuse
 it, and the log — including a manager being refused it.

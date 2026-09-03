@@ -42,7 +42,7 @@ export default function PayoutsList() {
    * has to be able to show every month; the header picker always holds one, because
    * the Dashboard and Report cannot work without it.
    */
-  const { month, verticalFilter, subcatFilter, refresh, reloadKey } = useApp();
+  const { month, verticalFilter, subcatFilter, isAdmin, refresh, reloadKey } = useApp();
   const toast = useToast();
   const confirm = useConfirm();
   const [writingOff, setWritingOff] = useState(null);
@@ -121,6 +121,25 @@ export default function PayoutsList() {
    * A carry-forward child is not offered at all: deleting the parent would strand a
    * payout sitting in a later month with its own ledger.
    */
+  /*
+   * Confirming the money actually landed. An admin's call, not a manager's: the
+   * manager is reporting what the network told them, and this is the person who
+   * can open the account and look. The server checks again.
+   */
+  const setVerified = async (p, yes) => {
+    try {
+      await api.post(`/api/payouts/${p.id}/${yes ? "verify" : "unverify"}`);
+      toast.success(
+        yes ? `#${p.id} confirmed received` : `#${p.id} confirmation withdrawn`,
+        yes ? undefined : "It can be confirmed again once checked."
+      );
+      after();
+    } catch (e) {
+      if (e.code === "nothing_received") toast.error("Nothing has arrived on this one yet");
+      else toast.error("Could not change the confirmation");
+    }
+  };
+
   const remove = async (p) => {
     const d = await api.get(`/api/payouts/${p.id}`).catch(() => null);
     const txns = (d && d.txns) || [];
@@ -229,7 +248,7 @@ export default function PayoutsList() {
                   <th className="right">Expected</th><th className="right">Profit</th>
                   <th className="right">Received</th>
                   <th className="right">Cut</th><th className="right">Pending</th>
-                  <th className="nowrap">Due</th><th>Status</th><th className="actioncol">Action</th>
+                  <th className="nowrap">Due</th><th>Status</th><th className="nowrap">Verified</th><th className="actioncol">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -282,6 +301,32 @@ export default function PayoutsList() {
                     </td>
                     <td>
                       <span className="statuscell"><StatusPill status={p.status} isOverdue={p.isOverdue} /></span>
+                    </td>
+
+                    {/*
+                      Two different claims, side by side. Status is what the network
+                      says; this is whether anybody has looked. A payout with nothing
+                      on it shows neither — there is nothing to confirm yet.
+                    */}
+                    <td className="nowrap" onClick={(e) => e.stopPropagation()}>
+                      {!p.amountReceived ? (
+                        <span className="muted">—</span>
+                      ) : p.verifiedAt ? (
+                        <>
+                          <span className="pill g">verified</span>
+                          <div className="muted" style={{ fontSize: 10.5 }}>
+                            {p.verifiedByName} · {dateLabel(String(p.verifiedAt).slice(0, 10))}
+                          </div>
+                          {isAdmin && (
+                            <button className="btn sm ghost" style={{ marginTop: 3 }}
+                              onClick={() => setVerified(p, false)}>Undo</button>
+                          )}
+                        </>
+                      ) : isAdmin ? (
+                        <button className="btn sm" onClick={() => setVerified(p, true)}>Confirm</button>
+                      ) : (
+                        <span className="pill a">awaiting admin</span>
+                      )}
                     </td>
                     <td className="actioncol" onClick={(e) => e.stopPropagation()}>
                       <span className="rowactions">
