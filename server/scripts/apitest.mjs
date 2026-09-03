@@ -493,7 +493,7 @@ async function main() {
    * cannot become payouts at all.
    */
   const SHEET_CSV = [
-    "Camapign Name,Campaign Name,Ad Cost (Expense),Overall Revenue,Actual Revenue,Profit,Network name,Vertical,Month,Received Amount,Bank Account,Payment Recived Date",
+    "Camapign Name,Campaign Name,Ad Cost (Expense),Overall Rvenue,Actual Revenue,Profit,Network name,Vertical,Month,Received Amount,Bank Account,Payment Recived Date",
     "T_EST,Etsy Apm Am,$89.34,$280.21,$252.19,163,SheetNet,CPS,May'26,,,",
     "T_LMB,Lycamobile Uk,$16.71,$0.00,$0.00,-17,SheetNet,CPS,May'26,,,",
     'T_KMF,"Komfort, Pl Sr",$249.08,$479.87,$287.92,39,SheetNet,CPS,May\'26,0,N/A,N/A',
@@ -518,7 +518,13 @@ async function main() {
   const mapped = Object.fromEntries(pv.data.mapped.map((m) => [m.field, m.header]));
   eq("a misspelled header still maps", mapped.receivedDate, "Payment Recived Date");
   eq("the code column is read as the id, not the campaign", mapped.externalId, "Camapign Name");
-  eq("...leaving the name column as the campaign", mapped.campaign, "Campaign Name");
+  eq("...leaving the readable name as the campaign", mapped.campaign, "Campaign Name");
+  /*
+   * Both columns answer to "campaign", and taken in order the code wins — which
+   * imported every payout with a code where its name should be.
+   */
+  eq("the campaign is the name, not the code", (await admin.get("/api/payouts?network=SheetNet&limit=50")).status, 200);
+  eq("a sheet spelling revenue its own way is still read", mapped.overallRevenue, "Overall Rvenue");
   eq("profit is not imported", pv.data.ignored, ["Profit"]);
   eq("rows that cannot be payouts are counted apart", pv.data.counts.skippedBad, 2);
   eq("...and the rest are ready", pv.data.counts.imported, 3);
@@ -533,6 +539,8 @@ async function main() {
   eq("the payouts are here", brought.total, 3);
   const etsy = brought.items.find((p) => p.externalId === "T_EST");
   eq("money survives its currency symbol", etsy.amountExpected, 252.19);
+  eq("the campaign carries its readable name", etsy.campaign, "Etsy Apm Am");
+  eq("...and the code is what identifies the row", etsy.externalId, "T_EST");
   eq("...and the reported figure comes with it", etsy.overallRevenue, 280.21);
   eq("the cost comes too", etsy.adCost, 89.34);
   eq("profit is derived from them", etsy.profit, 162.85);

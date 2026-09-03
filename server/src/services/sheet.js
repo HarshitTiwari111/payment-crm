@@ -136,15 +136,21 @@ function parseCsv(text) {
 const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
 
 const FIELDS = {
-  externalId: ["id", "rowid", "uniqueid", "camapignname", "campaigncode", "code"],
-  campaign: ["campaignname", "campaign"],
+  /*
+   * Only a column that is plainly an id. A campaign code used to be listed here and
+   * that was wrong: a sheet with one campaign column had it taken as the id and
+   * imported every payout with no campaign name at all. The code is picked up below
+   * instead, and only when there is a second campaign column to spare.
+   */
+  externalId: ["id", "rowid", "uniqueid", "campaigncode", "code"],
+  campaign: ["campaignname", "camapignname", "campaign"],
   network: ["networkname", "network"],
   vertical: ["vertical"],
   subcategory: ["subvertical", "subcategory", "trafficsource"],
   earnedMonth: ["month", "earnedmonth", "period"],
   adCost: ["adcostexpense", "adcost", "cost", "expense", "spend"],
-  overallRevenue: ["overallrevenue", "grossrevenue", "reportedrevenue"],
-  amountExpected: ["actualrevenue", "revenue", "amountexpected", "expected", "payout"],
+  overallRevenue: ["overallrevenue", "overallrvenue", "grossrevenue", "reportedrevenue"],
+  amountExpected: ["actualrevenue", "actualrvenue", "revenue", "rvenue", "amountexpected", "expected", "payout"],
   amountReceived: ["receivedamount", "received", "amountreceived"],
   payAccount: ["bankaccount", "account", "bank"],
   receivedDate: ["paymentrecivedate", "paymentreciveddate", "paymentreceiveddate", "receiveddate", "paymentdate"],
@@ -153,22 +159,47 @@ const FIELDS = {
 };
 
 /*
- * Which column holds which field. The first header that matches wins, so a sheet
- * with both "Campaign Name" columns — one a code, one a name — keeps them apart:
- * the code column is only ever read as an id, never as the campaign.
+ * Which column holds which field.
+ *
+ * Two passes, because one is not enough for the campaign columns. These sheets tend
+ * to keep two of them side by side — a short code (EST_APM) and the readable name
+ * (Etsy Apm Am) — and both answer to "campaign". Taken in order the code wins and
+ * every payout imports with a code where its name should be.
+ *
+ * So the campaign is the one spelled campaignname exactly, and the other is left
+ * over. A left-over campaign column makes a better id than the composite fallback,
+ * because it survives the campaign being renamed — but only when no column actually
+ * called an id was found. A sheet with just one campaign column keeps it as the
+ * name, which is the thing a person reads.
  */
 function mapHeaders(headerRow) {
+  const keys = headerRow.map(norm);
   const seen = {};
   const used = new Set();
-  headerRow.forEach((raw, i) => {
-    const key = norm(raw);
-    if (!key) return;
+
+  const claim = (field, i) => {
+    if (i === undefined || i < 0 || used.has(i)) return;
+    seen[field] = i;
+    used.add(i);
+  };
+
+  const campaignish = keys
+    .map((k, i) => (FIELDS.campaign.includes(k) ? i : -1))
+    .filter((i) => i >= 0);
+  const exact = campaignish.find((i) => keys[i] === "campaignname");
+  claim("campaign", exact !== undefined ? exact : campaignish[0]);
+
+  keys.forEach((key, i) => {
+    if (!key || used.has(i)) return;
     for (const [field, names] of Object.entries(FIELDS)) {
       if (seen[field] !== undefined) continue;
-      if (used.has(i)) continue;
-      if (names.includes(key)) { seen[field] = i; used.add(i); break; }
+      if (names.includes(key)) { claim(field, i); break; }
     }
   });
+
+  if (seen.externalId === undefined) {
+    claim("externalId", campaignish.find((i) => !used.has(i)));
+  }
   return seen;
 }
 

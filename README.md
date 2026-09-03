@@ -79,7 +79,7 @@ password `changeme123`. Change it from the avatar menu before anything else.
 npm --prefix server test
 ```
 
-252 checks driven over real HTTP with real cookies — sessions and refresh, the role
+256 checks driven over real HTTP with real cookies — sessions and refresh, the role
 gates, vertical scoping, the payout ledger (partial payment, cut, carry-forward,
 adjustment, write-off), every report, the View team lens and the attempts to abuse
 it, and the log — including a manager being refused it.
@@ -159,7 +159,7 @@ included. What it looks for:
 | Network name | the network | yes |
 | Month (`May'26`, `2026-05`, `May 2026`, `05/2026`) | earned month | yes |
 | Actual Revenue | what is owed | yes, and above zero |
-| an id column, else campaign + network + month | how a re-run recognises the row | — |
+| an id column, else a spare campaign column, else campaign + network + month | how a re-run recognises the row | — |
 | Campaign Name | the campaign | no |
 | Vertical, Sub-vertical | where it is filed | for a manager, yes — a row with none, or with one they do not hold, is theirs to leave |
 | Ad Cost, Overall Revenue | the spend side | no |
