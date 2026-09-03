@@ -15,6 +15,7 @@ import { Loading, Empty, Field } from "../../components/ui";
 import { useToast } from "../../components/Toast";
 import { useConfirm, PromptModal } from "../../components/Confirm";
 import Pager from "../../components/Pager";
+import SheetImport from "./SheetImport";
 import { useRegisterPageActions } from "../../components/PageAction";
 import {
   IconEdit, IconDelete, IconWriteOff, IconUndo, IconCarry, IconReconcile,
@@ -41,7 +42,7 @@ export default function PayoutsList() {
    * has to be able to show every month; the header picker always holds one, because
    * the Dashboard and Report cannot work without it.
    */
-  const { month, verticalFilter, subcatFilter, refresh, reloadKey } = useApp();
+  const { month, verticalFilter, subcatFilter, isAdmin, refresh, reloadKey } = useApp();
   const toast = useToast();
   const confirm = useConfirm();
   const [writingOff, setWritingOff] = useState(null);
@@ -56,10 +57,20 @@ export default function PayoutsList() {
   const [editing, setEditing] = useState(null);     // payout or {} for new
   const [reconciling, setReconciling] = useState(null);
   const [detail, setDetail] = useState(null);
+  const [sheet, setSheet] = useState(false);
 
   // "Add payout" belongs beside the page title, not buried under the filters
   const openNew = useCallback(() => setEditing({}), []);
-  useRegisterPageActions(useMemo(() => [{ label: "Add payout", onClick: openNew }], [openNew]));
+  const openSheet = useCallback(() => setSheet(true), []);
+  /*
+   * Importing writes payouts across every vertical in the sheet, which is exactly
+   * what a manager is scoped out of doing — so the button is an admin's, and the
+   * route behind it checks again.
+   */
+  useRegisterPageActions(useMemo(() => [
+    ...(isAdmin ? [{ label: "From sheet", onClick: openSheet, variant: "ghost" }] : []),
+    { label: "Add payout", onClick: openNew },
+  ], [isAdmin, openSheet, openNew]));
 
   const load = useCallback(async () => {
     setRes(null);
@@ -389,6 +400,13 @@ export default function PayoutsList() {
           }}
         />
       )}
+      {sheet && (
+        <SheetImport
+          onClose={() => setSheet(false)}
+          onImported={() => { setPage(1); refresh(); }}
+        />
+      )}
+
       {confirm.element}
       {detail && (
         <PayoutDetail

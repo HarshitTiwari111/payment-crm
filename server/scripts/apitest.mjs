@@ -485,6 +485,87 @@ async function main() {
   await admin.del(`/api/payouts/${untagged.data.id}?confirm=1`);
 
   console.log("");
+  console.log("=== importing from a sheet ===");
+  /*
+   * A stand-in for Google, serving the shape of the sheet these figures really come
+   * from: two headers misspelled the way the original spells them, money written
+   * with currency symbols and thousands separators, months as May'26, and rows that
+   * cannot become payouts at all.
+   */
+  const SHEET_CSV = [
+    "Camapign Name,Campaign Name,Ad Cost (Expense),Overall Revenue,Actual Revenue,Profit,Network name,Vertical,Month,Received Amount,Bank Account,Payment Recived Date",
+    "T_EST,Etsy Apm Am,$89.34,$280.21,$252.19,163,SheetNet,CPS,May'26,,,",
+    "T_LMB,Lycamobile Uk,$16.71,$0.00,$0.00,-17,SheetNet,CPS,May'26,,,",
+    'T_KMF,"Komfort, Pl Sr",$249.08,$479.87,$287.92,39,SheetNet,CPS,May\'26,0,N/A,N/A',
+    'T_ESTY,Etsy Launchigo Ca,$529.29,"$3,027.03","$2,724.33",2195,SheetNet,CPS,May\'26,"$3,027.00",ClickSpace,15/06/2026',
+    "T_BAD,Broken Month,$10.00,$50.00,$40.00,30,SheetNet,CPS,notamonth,,,",
+  ].join("\n");
+
+  const { createServer } = await import("node:http");
+  const stub = createServer((rq, rs) => {
+    if (rq.url.startsWith("/private")) {
+      rs.writeHead(200, { "Content-Type": "text/html" });
+      return rs.end("<!doctype html><html><head><title>Sign in</title></head><body>Sign in</body></html>");
+    }
+    rs.writeHead(200, { "Content-Type": "text/csv" });
+    rs.end(SHEET_CSV);
+  });
+  await new Promise((r) => stub.listen(4411, "127.0.0.1", r));
+  const SHEET = "http://127.0.0.1:4411/sheet.csv";
+
+  const pv = await admin.post("/api/sheet/preview", { url: SHEET });
+  eq("a sheet can be read", pv.status, 200);
+  const mapped = Object.fromEntries(pv.data.mapped.map((m) => [m.field, m.header]));
+  eq("a misspelled header still maps", mapped.receivedDate, "Payment Recived Date");
+  eq("the code column is read as the id, not the campaign", mapped.externalId, "Camapign Name");
+  eq("...leaving the name column as the campaign", mapped.campaign, "Campaign Name");
+  eq("profit is not imported", pv.data.ignored, ["Profit"]);
+  eq("rows that cannot be payouts are counted apart", pv.data.counts.skippedBad, 2);
+  eq("...and the rest are ready", pv.data.counts.imported, 3);
+  eq("a preview writes nothing", (await admin.get("/api/payouts?network=SheetNet")).data.total, 0);
+
+  const imp = await admin.post("/api/sheet/import", { url: SHEET });
+  eq("the import runs", imp.status, 200);
+  eq("...bringing in what the preview promised", imp.data.counts.imported, 3);
+  eq("...including the one already paid", imp.data.counts.reconciled, 1);
+
+  const brought = (await admin.get("/api/payouts?network=SheetNet&limit=50")).data;
+  eq("the payouts are here", brought.total, 3);
+  const etsy = brought.items.find((p) => p.externalId === "T_EST");
+  eq("money survives its currency symbol", etsy.amountExpected, 252.19);
+  eq("...and the reported figure comes with it", etsy.overallRevenue, 280.21);
+  eq("the cost comes too", etsy.adCost, 89.34);
+  eq("profit is derived from them", etsy.profit, 162.85);
+  eq("May'26 is read as a month", etsy.earnedMonth, "2026-05");
+  const komfort = brought.items.find((p) => p.externalId === "T_KMF");
+  eq("a comma inside a quoted cell does not shift the columns", komfort.campaign, "Komfort, Pl Sr");
+  eq("...so its money is still its own", komfort.amountExpected, 287.92);
+  const paid = brought.items.find((p) => p.externalId === "T_ESTY");
+  eq("a thousands separator is not a decimal point", paid.amountExpected, 2724.33);
+  eq("a row that says it was paid arrives paid", paid.amountReceived, 3027);
+  eq("...and settled", paid.status, "received");
+
+  const rerun = await admin.post("/api/sheet/import", { url: SHEET });
+  eq("running it twice imports nothing twice", rerun.data.counts.imported, 0);
+  eq("...it recognises what it brought before", rerun.data.counts.skippedExisting, 3);
+  eq("and the payouts are still three", (await admin.get("/api/payouts?network=SheetNet")).data.total, 3);
+
+  /* A sheet the server cannot open is not an empty sheet, and says so. */
+  const shut = await admin.post("/api/sheet/preview", { url: "http://127.0.0.1:4411/private" });
+  eq("a sheet needing a login is refused, not read as empty", shut.status, 400);
+  eq("...with the reason the screen explains", shut.data.error, "sheet_not_public");
+
+  eq("a manager cannot import", (await cps.post("/api/sheet/preview", { url: SHEET })).status, 403);
+  eq("...nor read the settings", (await cps.get("/api/sheet")).status, 403);
+
+  const state = await admin.get("/api/sheet");
+  eq("the last run is remembered", state.data.lastResult, "ok");
+  ok("...with who ran it", !!state.data.lastRunBy, state.data.lastRunBy);
+
+  for (const p of brought.items) await admin.del(`/api/payouts/${p.id}?confirm=1`);
+  await new Promise((r) => stub.close(r));
+
+  console.log("");
   console.log("=== the log ===");
   const actv = await admin.get("/api/log/activity?limit=200");
   eq("an admin can read the activity log", actv.status, 200);

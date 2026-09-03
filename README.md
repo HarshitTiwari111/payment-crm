@@ -18,6 +18,7 @@ Two, and only two.
 | Delete a network / a vertical | yes | no |
 | Users screen | yes | not shown, and blocked server-side |
 | Log | yes | not shown, and blocked server-side — their own sign-ins, yes |
+| Import from a sheet | yes | no — one run writes payouts across every vertical in it |
 
 A manager's verticals *are* their permissions, which is why only an admin edits
 accounts — granting yourself a vertical would leave the scoping decorative. Every
@@ -78,7 +79,7 @@ password `changeme123`. Change it from the avatar menu before anything else.
 npm --prefix server test
 ```
 
-163 checks driven over real HTTP with real cookies — sessions and refresh, the role
+244 checks driven over real HTTP with real cookies — sessions and refresh, the role
 gates, vertical scoping, the payout ledger (partial payment, cut, carry-forward,
 adjustment, write-off), every report, the View team lens and the attempts to abuse
 it, and the log — including a manager being refused it.
@@ -132,11 +133,47 @@ them rather than falling back to something weaker:
 process — it is the list (comma-separated) of origins allowed to call the API with
 credentials. Unset means none, which is right for the single-process deploy above.
 
+## Importing from a sheet
+
+Payout → **From sheet**, admin only. Paste the link to a Google Sheet, read it, see
+what it would do, then import. Nothing is written until the second click, and the
+preview is the same read the import performs — reported instead of applied.
+
+The server has no Google account of its own. It opens the link the way a stranger
+would, so the sheet has to be readable by anyone holding it: **Share → Anyone with
+the link → Viewer**, or **File → Share → Publish to web**. A sheet that still wants
+a login is named as that rather than read as an empty one.
+
+Headers are matched loosely — case, spaces and punctuation ignored, several names
+per field — because a working sheet spells things the way it always has, typos
+included. What it looks for:
+
+| Sheet column | Becomes | Needed |
+|---|---|---|
+| Network name | the network | yes |
+| Month (`May'26`, `2026-05`, `May 2026`, `05/2026`) | earned month | yes |
+| Actual Revenue | what is owed | yes, and above zero |
+| an id column, else campaign + network + month | how a re-run recognises the row | — |
+| Campaign Name | the campaign | no |
+| Vertical, Sub-vertical | where it is filed | no, but a payout without a vertical is admin-only |
+| Ad Cost, Overall Revenue | the spend side | no |
+| Received Amount, Payment Received Date | a reconciliation, posted with the payout | no |
+| Bank Account | how it is paid | no |
+
+Profit is never imported. It is revenue less cost, worked out on read, so a column
+of it in the sheet is left alone rather than stored a second time.
+
+Rows that cannot become a payout — no network, an unreadable month, zero revenue —
+are counted and listed rather than guessed at, and a row imported before is left
+exactly as it is. Once a payment has been reconciled here the sheet and this app
+have diverged on purpose; an import that wrote over that would undo the work on
+every run.
+
 ## Layout
 
 ```
 server/src
-  routes/      auth · users · taxonomy · payouts · log
+  routes/      auth · users · taxonomy · payouts · log · sheet
   services/    auth (sessions, 2FA) · payouts (ledger) · receivables (reporting)
   models/      User · Payout · PayoutTxn · Network · Campaign · Vertical · …
   middleware/  auth (who) · security (headers, limits) · validate (zod)

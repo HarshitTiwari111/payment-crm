@@ -67,6 +67,7 @@ api.use(require("./routes/users").router);
 api.use(require("./routes/taxonomy"));
 api.use(require("./routes/payouts"));
 api.use(require("./routes/log"));
+api.use(require("./routes/sheet"));
 app.use("/api", api);
 
 app.use("/api", (req, res) => res.status(404).json({ error: "not_found" }));
@@ -91,7 +92,15 @@ if (fs.existsSync(clientDist)) {
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   if (err && err.status === 403) return res.status(403).json({ error: err.code || "forbidden" });
-  if (err && err.status === 400) return res.status(400).json({ error: err.code || "bad_request" });
+  /*
+   * `detail` travels on a 400, and only on a 400. These are answers to something
+   * the caller did — a sheet the server cannot open, a date it cannot read — where
+   * the sentence explaining it is the whole value of the response. Nothing else
+   * carries one: a 500's detail is our stack trace, and that is nobody's business.
+   */
+  if (err && err.status === 400) {
+    return res.status(400).json({ error: err.code || "bad_request", ...(err.detail ? { detail: err.detail } : {}) });
+  }
   if (err && err.type === "entity.too.large") return res.status(413).json({ error: "payload_too_large" });
 
   // log the detail, return none — a stack trace in a response is a map of the app
