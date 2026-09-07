@@ -335,6 +335,18 @@ input[type="file"] { padding: 7px 10px; }
  * With a floor the table scrolls sideways instead, like every other one here.
  */
 .subcell { min-width: 260px; }
+
+/*
+ * The Log's two tables: four short columns and one long one.
+ *
+ * A table under pressure takes the space it needs out of whichever column will
+ * give it, which is always the one holding a sentence — so on a phone the short
+ * columns kept their words and the detail column became six stacked lines. The
+ * short ones are pinned to one line and the long one gets a floor, which turns
+ * the pressure into a sideways scroll, the way every other table here handles it.
+ */
+.logtable th, .logtable td { white-space: nowrap; }
+.logtable th.detailcol, .logtable td.detailcol { white-space: normal; min-width: 300px; }
 .pill.g { background: var(--pill-g-bg); color: var(--pill-g-fg); }
 .pill.a { background: var(--pill-a-bg); color: var(--pill-a-fg); }
 .pill.r { background: var(--pill-r-bg); color: var(--pill-r-fg); }
