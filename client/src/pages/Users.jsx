@@ -145,7 +145,7 @@ export default function Users() {
     () => (rows || []).filter((u) => (showInactive ? true : u.active)),
     [rows, showInactive]
   );
-  const { rows: shown, pager } = usePaged(list, 25);
+  const { rows: shown, pager } = usePaged(list);
 
   if (rows === null) return <Loading />;
 

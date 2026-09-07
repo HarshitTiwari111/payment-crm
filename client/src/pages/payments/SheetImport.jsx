@@ -46,7 +46,7 @@ export default function SheetImport({ onClose, onImported }) {
    * every row, not of this page. Only the drawing is paged, because a preview of
    * six hundred rows is where this dialog started to crawl.
    */
-  const { rows: shownRows, pager } = usePaged(preview && preview.results, 50);
+  const { rows: shownRows, pager } = usePaged(preview && preview.results);
 
   useEffect(() => {
     api.get("/api/sheet")

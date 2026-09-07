@@ -21,12 +21,18 @@ import { IconPrev, IconNext } from "../icons";
  * paging it is a rendering decision rather than a fetching one, and this hook is
  * the whole of it.
  *
+ * Ten rows, like the Payout screen the rest of these are read beside. It is a
+ * page size chosen for a phone and for the two lists that sit inside dialogs,
+ * and nobody wants the same table paged differently depending on which screen
+ * they opened it from — so it is decided here rather than per caller, and the
+ * Rows control changes it for anyone who wants more.
+ *
  * It clamps the page rather than trusting it. A filter that shortens the list
  * underneath you (ticking "show deactivated" off, say) would otherwise leave you
  * standing on page 4 of a list that now has two, reading an empty table and with no
  * obvious way back.
  */
-export function usePaged(rows, initialLimit = 25) {
+export function usePaged(rows, initialLimit = 10) {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(initialLimit);
 

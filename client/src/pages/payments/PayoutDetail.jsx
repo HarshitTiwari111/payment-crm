@@ -106,14 +106,14 @@ export default function PayoutDetail({ id, onClose, onChanged, onReconcile }) {
   };
 
   /*
-   * Ten to a page inside a dialog. A ledger that has been corrected a few times
-   * runs long, and the correction form opens UNDER the table — pushed off the
-   * bottom of a forty-row modal it may as well not have opened.
+   * A ledger that has been corrected a few times runs long, and the correction
+   * form opens UNDER the table — pushed off the bottom of a forty-row modal it
+   * may as well not have opened.
    *
    * Both sit above the loading return, because hooks cannot run conditionally.
    */
-  const txns = usePaged(d && d.txns, 10);
-  const kids = usePaged(d && d.children, 10);
+  const txns = usePaged(d && d.txns);
+  const kids = usePaged(d && d.children);
 
   if (!d) {
     return <Modal title="Payout" onClose={onClose}><Loading /></Modal>;

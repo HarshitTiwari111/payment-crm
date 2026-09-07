@@ -90,7 +90,7 @@ export default function Log() {
   const [meta, setMeta] = useState({ actions: [], actors: [] });
   const [filters, setFilters] = useState({ q: "", action: "", actorId: "", result: "", from: "", to: "" });
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(50);
+  const [limit, setLimit] = useState(10);
   /*
    * Rows are held together with the view they were fetched for. Switching tabs
    * re-renders before the new request lands, and the two payloads share no columns —

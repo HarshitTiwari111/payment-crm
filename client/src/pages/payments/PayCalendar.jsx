@@ -33,7 +33,7 @@ const PRESETS = [
  * different questions and are read separately.
  */
 function GroupTable({ items }) {
-  const { rows, pager } = usePaged(items, 25);
+  const { rows, pager } = usePaged(items);
   return (
     <>
     <div className="tablewrap">

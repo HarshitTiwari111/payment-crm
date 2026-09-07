@@ -139,7 +139,7 @@ export default function Verticals() {
   });
 
   // above the loading return: a hook cannot sit under a conditional one
-  const { rows: shownVerts, pager } = usePaged(verticalOptions, 25);
+  const { rows: shownVerts, pager } = usePaged(verticalOptions);
 
   if (!verticalOptions) return <Loading />;
 

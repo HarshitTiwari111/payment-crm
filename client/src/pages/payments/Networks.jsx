@@ -89,7 +89,7 @@ export default function Networks() {
   });
 
   // above the loading return: a hook cannot sit under a conditional one
-  const { rows: shown, pager } = usePaged(rows, 25);
+  const { rows: shown, pager } = usePaged(rows);
 
   if (rows === null) return <Loading />;
 

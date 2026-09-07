@@ -35,8 +35,8 @@ export default function PayDashboard() {
    * that only runs on the renders where data has arrived is a hook React cannot
    * keep track of. Both read straight off `d`, which is null until it loads.
    */
-  const nets = usePaged(d && d.byNetwork, 25);
-  const verts = usePaged(d && d.byVertical, 25);
+  const nets = usePaged(d && d.byNetwork);
+  const verts = usePaged(d && d.byVertical);
 
   if (!d) return <Loading />;
 

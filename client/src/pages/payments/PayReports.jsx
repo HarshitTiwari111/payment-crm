@@ -133,7 +133,7 @@ function Received({ d, month }) {
 
 function Table({ rows, keyField }) {
   // before the early return — hooks have to run on every render of this component
-  const { rows: shown, pager } = usePaged(rows, 25);
+  const { rows: shown, pager } = usePaged(rows);
   if (!rows || !rows.length) return <div className="muted">Nothing to show.</div>;
   return (
     <>
@@ -167,7 +167,7 @@ function Table({ rows, keyField }) {
 
 /** Who pays on time, who cuts the most, and how late they usually are. */
 function Networks({ d }) {
-  const { rows: shown, pager } = usePaged(d, 25);
+  const { rows: shown, pager } = usePaged(d);
   if (!d || !d.length) return <Empty title="No network history yet." />;
   return (
     <>
@@ -221,7 +221,7 @@ function Networks({ d }) {
 
 /** How each of the last few earned months has filled in. */
 function Trend({ d }) {
-  const { rows: shown, pager } = usePaged(d, 25);
+  const { rows: shown, pager } = usePaged(d);
   if (!d || !d.length) return <Empty title="Not enough history yet." />;
   return (
     <>
