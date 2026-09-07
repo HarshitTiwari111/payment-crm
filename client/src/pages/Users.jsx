@@ -178,18 +178,24 @@ export default function Users() {
             <tbody>
               {shown.map((u) => (
                 <tr key={u.id} style={u.active ? undefined : { opacity: 0.55 }}>
-                  <td>
+                  <td className="nowrap">
                     <b>{u.name}</b>
                     {u.id === me.id && <span className="muted" style={{ marginLeft: 6, fontSize: 11 }}>(you)</span>}
                     {!u.active && <span className="pill r" style={{ marginLeft: 6 }}>deactivated</span>}
                   </td>
                   <td className="muted">{u.username}</td>
                   <td><span className={"pill " + (u.role === "admin" ? "g" : "n")}>{u.role}</span></td>
-                  <td>
+                  {/*
+                    Same floor as the sub-verticals column on the Vertical screen: left
+                    to size itself this cell gets whatever is left over on a phone and
+                    stacks a manager with four verticals into a four-line row. With one
+                    the chips sit side by side and the table scrolls, like the rest.
+                  */}
+                  <td className="subcell">
                     {u.role === "admin"
                       ? <span className="muted">all verticals</span>
                       : vertsOf(u).length
-                        ? vertsOf(u).map((v) => <span key={v} className="pill n" style={{ marginRight: 4 }}>{v}</span>)
+                        ? <div className="chiprow">{vertsOf(u).map((v) => <span key={v} className="pill n">{v}</span>)}</div>
                         : <span className="pill r">none — sees nothing</span>}
                   </td>
                   <td>{u.twoFactorEnabled ? <span className="pill g">on</span> : <span className="pill a">off</span>}</td>
