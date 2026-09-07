@@ -37,7 +37,9 @@ function GroupTable({ items }) {
   return (
     <>
     <div className="tablewrap">
-      <table>
+      {/* all seven are fields — a campaign name broken over three lines made the
+          row three times as tall for no reading gained. See .pintable */}
+      <table className="pintable">
         <thead>
           <tr>
             <th>Due</th><th>Network</th><th>Campaign</th><th>Vertical</th>

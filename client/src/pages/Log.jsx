@@ -208,18 +208,14 @@ export default function Log() {
 function Activity({ rows }) {
   return (
     <div className="tablewrap">
-      {/*
-        Four short columns and one long one. Without a floor under the long one the
-        browser takes the space it needs from there first, and on a phone a line of
-        detail became six lines stacked in a 90px column.
-      */}
-      <table className="logtable">
+      {/* every column but Detail is a field, not a sentence — see .pintable */}
+      <table className="pintable">
         <thead>
           <tr>
             <th style={{ width: 130 }}>When</th>
             <th style={{ width: 150 }}>Who</th>
             <th style={{ width: 190 }}>What</th>
-            <th className="detailcol">Detail</th>
+            <th className="wrapcol wide">Detail</th>
             <th style={{ width: 110 }}>Month</th>
           </tr>
         </thead>
@@ -229,7 +225,7 @@ function Activity({ rows }) {
               <td><Stamp at={r.ts} /></td>
               <td><b>{r.actorName}</b></td>
               <td>{r.label}</td>
-              <td className="detailcol">
+              <td className="wrapcol wide">
                 {r.detail || <span className="muted">—</span>}
                 {/* who it was done TO, when that is someone other than the actor */}
                 {r.targetName && r.targetName !== r.actorName && (
@@ -248,14 +244,14 @@ function Activity({ rows }) {
 function Signins({ rows }) {
   return (
     <div className="tablewrap">
-      <table className="logtable">
+      <table className="pintable">
         <thead>
           <tr>
             <th style={{ width: 130 }}>When</th>
             <th style={{ width: 150 }}>Username</th>
             <th style={{ width: 150 }}>Result</th>
             <th style={{ width: 150 }}>Address</th>
-            <th className="detailcol">Browser</th>
+            <th>Browser</th>
           </tr>
         </thead>
         <tbody>
@@ -277,7 +273,7 @@ function Signins({ rows }) {
                 )}
               </td>
               <td>{r.ip || <span className="muted">—</span>}</td>
-              <td className="detailcol" title={r.userAgent}>{browserOf(r.userAgent)}</td>
+              <td title={r.userAgent}>{browserOf(r.userAgent)}</td>
             </tr>
           ))}
         </tbody>

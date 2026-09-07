@@ -108,9 +108,11 @@ export default function Networks() {
         </Empty>
       ) : (
         <div className="tablewrap">
-          <table>
+          {/* the first three are fields — `Net-30` was breaking after the hyphen.
+              Contact and Note are free text and opt back out. See .pintable */}
+          <table className="pintable">
             <thead>
-              <tr><th>Network</th><th>Net terms</th><th>Currency</th><th>Contact</th><th>Note</th><th className="actioncol">Action</th></tr>
+              <tr><th>Network</th><th>Net terms</th><th>Currency</th><th className="wrapcol">Contact</th><th className="wrapcol">Note</th><th className="actioncol">Action</th></tr>
             </thead>
             <tbody>
               {shown.map((n) => (
@@ -121,8 +123,8 @@ export default function Networks() {
                   </td>
                   <td>{n.netTerms === 0 ? "Immediate" : `Net-${n.netTerms}`}</td>
                   <td>{n.defaultCurrency}</td>
-                  <td className="muted">{n.contact || "—"}</td>
-                  <td className="muted">{n.note || "—"}</td>
+                  <td className="muted wrapcol">{n.contact || "—"}</td>
+                  <td className="muted wrapcol">{n.note || "—"}</td>
                   <td className="actioncol" style={{ whiteSpace: "nowrap" }}>
                     <button className="btn ico" title="Edit network" data-tip="Edit network" aria-label="Edit network" onClick={() => openEdit(n)}><IconEdit size={14} /></button>{" "}
                     {/* deleting is admin-only: a network name is the join key on every
