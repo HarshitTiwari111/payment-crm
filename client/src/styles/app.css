@@ -325,7 +325,16 @@ input[type="file"] { padding: 7px 10px; }
 }
 .kpibar > span { display: block; height: 100%; transition: width .4s; }
 
-.pill { font-size: 11px; font-weight: 650; padding: 3px 9px; border-radius: 20px; display: inline-block; }
+/* nowrap: a chip that breaks across two lines stops reading as one thing, and
+   the ones here carry a delete control that would be left on its own */
+.pill { font-size: 11px; font-weight: 650; padding: 3px 9px; border-radius: 20px; display: inline-block; white-space: nowrap; }
+
+/*
+ * A cell holding a row of chips needs a floor under it, or the table hands it
+ * whatever is left over — 97px on a phone — and five chips become five lines.
+ * With a floor the table scrolls sideways instead, like every other one here.
+ */
+.subcell { min-width: 260px; }
 .pill.g { background: var(--pill-g-bg); color: var(--pill-g-fg); }
 .pill.a { background: var(--pill-a-bg); color: var(--pill-a-fg); }
 .pill.r { background: var(--pill-r-bg); color: var(--pill-r-fg); }
@@ -831,7 +840,14 @@ td input, td select { width: 100%; }
   .pagehead { gap: 10px; margin-bottom: 12px; }
   .pagehead .ttl { font-size: 17px; }
   .pagehead .headactions { width: 100%; }
-  .pagehead .headactions .btn { flex: 1; justify-content: center; }
+  /*
+   * Each button takes the width its own label needs and no less. Sharing the row
+   * equally broke the longest one across two lines mid-word — better that a button
+   * that will not fit beside its neighbour drops to a line of its own.
+   */
+  .pagehead .headactions .btn {
+    flex: 1 1 auto; justify-content: center; white-space: nowrap;
+  }
 
   .card { padding: 14px; }
   .card .v { font-size: 22px; }

@@ -163,22 +163,34 @@ export default function Verticals() {
                 const subs = subcats.filter((s) => s.vertical === v);
                 return (
                   <tr key={v}>
-                    <td><b>{v}</b></td>
-                    <td>
-                      {subs.length ? subs.map((s) => (
-                        <span key={s.id} className="pill n" style={{ marginRight: 6 }}>
-                          {s.name}
-                          {canEdit && (
-                            <a
-                              href="#"
-                              style={{ marginLeft: 6, color: "var(--red)", textDecoration: "none" }}
-                              onClick={(e) => { e.preventDefault(); delSub(s); }}
-                            >
-                              <IconDelete size={11} style={{ verticalAlign: -2 }} />
-                            </a>
-                          )}
-                        </span>
-                      )) : <span className="muted">—</span>}
+                    <td className="nowrap"><b>{v}</b></td>
+                    {/*
+                      A row of chips with a floor under its width.
+
+                      Left to size itself this column took 97px on a phone and stacked
+                      five sub-verticals one per line, so a vertical with a few of them
+                      was a 170px-tall row. The floor makes the table scroll sideways
+                      instead, which is what every other table here already does.
+                    */}
+                    <td className="subcell">
+                      {subs.length ? (
+                        <div className="chiprow">
+                          {subs.map((s) => (
+                            <span key={s.id} className="pill n">
+                              {s.name}
+                              {canEdit && (
+                                <a
+                                  href="#"
+                                  style={{ marginLeft: 6, color: "var(--red)", textDecoration: "none" }}
+                                  onClick={(e) => { e.preventDefault(); delSub(s); }}
+                                >
+                                  <IconDelete size={11} style={{ verticalAlign: -2 }} />
+                                </a>
+                              )}
+                            </span>
+                          ))}
+                        </div>
+                      ) : <span className="muted">—</span>}
                     </td>
                     <td className="right">
                       {me.role === "admin" && (
