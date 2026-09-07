@@ -218,8 +218,16 @@ async function clearFailedLogins(userId) {
 
 /* --------------------------------------------------------- login history */
 
-/** Record the attempt, and tell the person when it came from somewhere new. */
-async function recordLogin(user, info, { success, reason = "" }) {
+/**
+ * Record the attempt, and tell the person when it came from somewhere new.
+ *
+ * `username` is the name that was TYPED, and it is the only one there is when no
+ * account answers to it. Without it a failed attempt is logged as a dash, and the
+ * one question the sign-in log exists to answer — who is being guessed at — has
+ * no answer on exactly the rows that raise it. It is safe to keep: the login
+ * schema has already trimmed it, lowercased it and capped it at 64 characters.
+ */
+async function recordLogin(user, info, { success, reason = "", username = "" }) {
   let newDevice = false;
 
   if (success && user) {
@@ -233,7 +241,7 @@ async function recordLogin(user, info, { success, reason = "" }) {
 
   await LoginEvent.create({
     userId: user ? user.id : null,
-    username: user ? user.username : "",
+    username: user ? user.username : String(username || "").slice(0, 64),
     success, reason,
     ip: info.ip, userAgent: info.userAgent, deviceHash: info.deviceHash,
     newDevice,

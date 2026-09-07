@@ -78,6 +78,7 @@ function browserOf(ua) {
 const FAIL_REASONS = {
   bad_password: "Wrong password",
   no_such_user: "No such account",
+  disabled: "Account removed",
   locked: "Account locked",
   bad_totp: "Wrong two-factor code",
   "2fa_required": "Two-factor code asked for",

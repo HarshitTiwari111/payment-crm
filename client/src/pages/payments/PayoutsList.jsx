@@ -47,6 +47,7 @@ export default function PayoutsList() {
   const confirm = useConfirm();
   const [writingOff, setWritingOff] = useState(null);
   const [res, setRes] = useState(null);
+  const [busy, setBusy] = useState(false);
   const [networks, setNetworks] = useState([]);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
@@ -73,7 +74,19 @@ export default function PayoutsList() {
   ], [openSheet, openNew]));
 
   const load = useCallback(async () => {
-    setRes(null);
+    /*
+     * Deliberately NOT setRes(null).
+     *
+     * Every keystroke in the Search box reloads, and blanking the result unmounted
+     * this whole screen — filter bar included — until the answer came back. React
+     * then built a new input, so the cursor was gone after the first letter and the
+     * box could not be typed into at all.
+     *
+     * The old rows stay on screen, dimmed, until the new ones replace them. Which
+     * is the better answer anyway: a filter is a narrowing of something you are
+     * looking at, and blinking it to nothing between every letter loses your place.
+     */
+    setBusy(true);
     /*
      * The earned month comes from the header, like the vertical. Empty is a real
      * answer here and means every month — this screen is the whole ledger, and the
@@ -82,6 +95,7 @@ export default function PayoutsList() {
     const scope = { month, vertical: verticalFilter, subcategory: subcatFilter };
     const r = await api.get(`/api/payouts${qs({ ...filters, ...scope, page, limit })}`).catch(() => null);
     setRes(r || { items: [], total: 0, pages: 1, totals: {} });
+    setBusy(false);
   }, [filters, month, verticalFilter, subcatFilter, page, limit]);
 
   useEffect(() => { load(); }, [load, reloadKey]);
@@ -186,6 +200,7 @@ export default function PayoutsList() {
     });
   };
 
+  // only the very first load has nothing to show yet
   if (res === null) return <Loading />;
 
   const t = res.totals || {};
@@ -233,6 +248,7 @@ export default function PayoutsList() {
         </div>
       </div>
 
+      <div style={busy ? { opacity: 0.55, transition: "opacity .15s" } : undefined}>
       {!res.items.length ? (
         <Empty title="No payouts match these filters.">
           <p>Add one to start tracking what a network owes you.</p>
@@ -381,6 +397,7 @@ export default function PayoutsList() {
           />
         </>
       )}
+      </div>
 
       {editing && (
         <PayoutModal

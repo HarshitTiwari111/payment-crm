@@ -707,6 +707,31 @@ async function main() {
   ok("including the ones that failed", signins.data.items.some((r) => !r.success));
   ok("...with a reason", signins.data.items.filter((r) => !r.success).every((r) => r.reason));
 
+  /*
+   * The name that was typed, kept even when nothing answers to it.
+   *
+   * Without it the rows that matter most — somebody working through usernames —
+   * are logged as a dash, and searching the log for the name being guessed at
+   * finds nothing. The reply to the caller stays identical either way, so this
+   * costs nothing outside: the log knows more, the stranger does not.
+   */
+  await session().post("/api/login", { username: "ghost-account", password: "whatever12" });
+  const guessed = await admin.get("/api/log/signins?limit=50&q=ghost-account");
+  eq("a sign-in as a name nobody has is logged under that name", guessed.data.total, 1);
+  eq("...and says so", guessed.data.items[0].reason, "no_such_user");
+
+  const removed = await admin.post("/api/users", {
+    name: "Left The Company", username: "leaver", password: "leaver12345",
+    role: "manager", vertical: "CPS", verticals: ["CPS"],
+  });
+  await admin.del(`/api/users/${removed.data.id}`);
+  const back = await session().post("/api/login", { username: "leaver", password: "leaver12345" });
+  eq("a removed account is refused", back.status, 401);
+  eq("...and told nothing about why", back.data.reason, undefined);
+  const byName = await admin.get("/api/log/signins?limit=50&q=leaver");
+  eq("...but the log has it under their name", byName.data.total, 1);
+  eq("...and separates it from a name nobody has", byName.data.items[0].reason, "disabled");
+
   const meta = await admin.get("/api/log/meta");
   ok("the filters are offered only actions that exist", meta.data.actions.length > 0
     && meta.data.actions.every((a) => a.value && a.label));

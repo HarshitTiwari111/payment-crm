@@ -31,7 +31,20 @@ router.post("/login", validate({ body: S.login }), ah(async (req, res) => {
 
   if (!user || !user.active) {
     bcrypt.compareSync(password, DUMMY_HASH);
-    await svc.recordLogin(null, info, { success: false, reason: "no_such_user" });
+    /*
+     * Two different events that look the same from outside and must not look the
+     * same from inside. The reply is identical either way — telling a stranger
+     * which usernames exist is how a password guess becomes a targeted one — but
+     * the log says which it was, because a removed employee still trying to sign
+     * in is worth seeing and a stranger guessing names is a different problem.
+     *
+     * The typed name travels either way, so the rows are not a column of dashes.
+     */
+    await svc.recordLogin(user || null, info, {
+      success: false,
+      reason: user ? "disabled" : "no_such_user",
+      username,
+    });
     return deny();
   }
 
