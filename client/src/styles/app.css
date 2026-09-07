@@ -371,7 +371,17 @@ th {
 }
 tr:last-child td { border-bottom: none; }
 td input, td select { width: 100%; }
-.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
+/*
+ * A figure is one thing and never breaks.
+ *
+ * The minus sign in front of a cut is a break opportunity as far as the browser is
+ * concerned, so a narrow column was putting the sign on one line and the amount on
+ * the next — which reads as an empty cell above a positive number, the opposite of
+ * what it says. Same for the thousands separator and the currency symbol.
+ */
+.num, td.num {
+  text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap;
+}
 .right { text-align: right; }
 .muted { color: var(--muted); }
 .nowrap, td.nowrap, th.nowrap { white-space: nowrap; }
