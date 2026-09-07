@@ -12,6 +12,7 @@ import { useApp } from "../../context/AppContext";
 import { Loading, Empty, Modal, Field } from "../../components/ui";
 import { useToast } from "../../components/Toast";
 import { useConfirm } from "../../components/Confirm";
+import Pager, { usePaged } from "../../components/Pager";
 import { IconAdd, IconEdit, IconDelete } from "../../icons";
 import { NET_TERMS } from "./shared";
 
@@ -87,6 +88,9 @@ export default function Networks() {
     },
   });
 
+  // above the loading return: a hook cannot sit under a conditional one
+  const { rows: shown, pager } = usePaged(rows, 25);
+
   if (rows === null) return <Loading />;
 
   return (
@@ -109,7 +113,7 @@ export default function Networks() {
               <tr><th>Network</th><th>Net terms</th><th>Currency</th><th>Contact</th><th>Note</th><th className="actioncol">Action</th></tr>
             </thead>
             <tbody>
-              {rows.map((n) => (
+              {shown.map((n) => (
                 <tr key={n._id} style={n.active === false ? { opacity: 0.55 } : undefined}>
                   <td>
                     <b>{n.name}</b>
@@ -131,6 +135,7 @@ export default function Networks() {
           </table>
         </div>
       )}
+      <Pager {...pager} noun="network" />
 
       {editing && (
         <Modal

@@ -13,6 +13,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { api } from "../../api/client";
 import { Modal, Loading, Field } from "../../components/ui";
 import { useToast } from "../../components/Toast";
+import Pager, { usePaged } from "../../components/Pager";
 import { IconWarn, IconArrowLeft } from "../../icons";
 import { money, monthLabel, dateLabel } from "../../api/format";
 import { StatusPill, Cut, DEDUCTION_REASONS } from "./shared";
@@ -104,6 +105,16 @@ export default function PayoutDetail({ id, onClose, onChanged, onReconcile }) {
     }
   };
 
+  /*
+   * Ten to a page inside a dialog. A ledger that has been corrected a few times
+   * runs long, and the correction form opens UNDER the table — pushed off the
+   * bottom of a forty-row modal it may as well not have opened.
+   *
+   * Both sit above the loading return, because hooks cannot run conditionally.
+   */
+  const txns = usePaged(d && d.txns, 10);
+  const kids = usePaged(d && d.children, 10);
+
   if (!d) {
     return <Modal title="Payout" onClose={onClose}><Loading /></Modal>;
   }
@@ -177,7 +188,7 @@ export default function PayoutDetail({ id, onClose, onChanged, onReconcile }) {
               </tr>
             </thead>
             <tbody>
-              {d.txns.map((t) => (
+              {txns.rows.map((t) => (
                 <tr key={t.id} style={t.reversalOf ? { background: "var(--panel2)" } : undefined}>
                   <td style={{ whiteSpace: "nowrap" }}>
                     {t.date ? dateLabel(t.date) : "—"}
@@ -205,6 +216,7 @@ export default function PayoutDetail({ id, onClose, onChanged, onReconcile }) {
           </table>
         </div>
       )}
+      <Pager {...txns.pager} noun="entry" plural="entries" />
 
       {d.children.length > 0 && (
         <>
@@ -215,7 +227,7 @@ export default function PayoutDetail({ id, onClose, onChanged, onReconcile }) {
                 <tr><th>Payout</th><th>Expected</th><th className="right">Amount</th><th>Status</th></tr>
               </thead>
               <tbody>
-                {d.children.map((c) => (
+                {kids.rows.map((c) => (
                   <tr key={c.id}>
                     <td>#{c.id} · {c.network}</td>
                     <td className="muted">{c.expectedDate ? dateLabel(c.expectedDate) : "—"}</td>
@@ -226,6 +238,7 @@ export default function PayoutDetail({ id, onClose, onChanged, onReconcile }) {
               </tbody>
             </table>
           </div>
+          <Pager {...kids.pager} noun="payout" />
         </>
       )}
 

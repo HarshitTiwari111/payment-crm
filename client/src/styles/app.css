@@ -181,6 +181,8 @@ nav.tabs::-webkit-scrollbar { width: 0; height: 0; display: none; }
 .monthpick .btn.sm { padding: 5px 10px; }
 
 .spacer { flex: 1; }
+/* the three top-bar selectors: no box at all until the phone breakpoint */
+.topsel { display: contents; }
 /* Wide enough for the payouts table (11 columns) to fit without scrolling on a
    normal laptop, and still readable on a big monitor. */
 main { padding: 24px; max-width: 1560px; width: 100%; }
@@ -745,10 +747,28 @@ td input, td select { width: 100%; }
   .login-form h2 { font-size: 23px; }
 }
 
+/* The flat pager used inside a card that already draws its own border, so a
+   month's footer does not read as a second panel stacked under the table. */
+.pagerinset .pager {
+  border: none; box-shadow: none; background: none;
+  margin-top: 0; padding: 4px 14px 12px;
+}
+
+/* The drawer trigger. It lives in the top bar and only exists on phones — see the
+   720px breakpoint below, which is also where the sidebar becomes a drawer. */
+.topburger { display: none; color: var(--txt); }
+.topburger:hover { background: var(--panel2); color: var(--txt); }
+.navscrim { display: none; }
+
 /* ============================================================
    Responsive + print
    ============================================================ */
-@media (max-width: 820px) {
+
+/*
+ * Tablet. The rail stays a column and drops its words — at this width the icons
+ * are still cheap, and a drawer would be a tap where none is needed.
+ */
+@media (min-width: 721px) and (max-width: 820px) {
   :root { --sbw: 68px; }
   .sidebar .brand .brandname { display: none; }
   .tab .tablabel { display: none; }
@@ -756,10 +776,107 @@ td input, td select { width: 100%; }
   main { padding: 16px; }
   .topbar { padding: 10px 14px; }
 }
+
+/*
+ * Phone. The sidebar stops being a column and becomes a drawer over the page.
+ *
+ * The icon rail does not survive the trip down: 68px off a 375px screen is a fifth
+ * of the width spent on navigation nobody is reading while they work through a
+ * table, and the tables here are the widest thing in the app. Off-canvas gives the
+ * page every pixel and costs one tap to get the menu back.
+ *
+ * The drawer always opens as the full menu with its labels, whatever state the
+ * desktop rail was left in — a collapsed drawer would be a column of unlabelled
+ * icons floating over the page, which is the worst of both.
+ */
+@media (max-width: 720px) {
+  /* the off-canvas rail sits at translateX(-100%); some browsers still count it */
+  body { overflow-x: hidden; }
+
+  .sidebar, .sidebar.collapsed {
+    width: 250px; transform: translateX(-100%); transition: transform .2s ease;
+  }
+  .sidebar.open { transform: none; box-shadow: var(--shadow-lg); }
+  .sidebar.collapsed .brand { justify-content: flex-start; padding: 14px 12px 14px 16px; }
+  .sidebar.collapsed .brand .brandname { display: block; }
+  .sidebar.collapsed .tab { justify-content: flex-start; padding: 9px 11px; }
+  .sidebar.collapsed .tab .tablabel { display: flex; }
+  .sidebar .burger { margin-left: auto; }
+  .main, .main.wide { margin-left: 0; }
+
+  .navscrim {
+    display: block; position: fixed; inset: 0; z-index: 19;
+    background: rgba(15, 23, 42, .5);
+  }
+
+  /*
+   * Top bar in two rows: [menu] … [avatar] above, the selectors two-up beneath.
+   * Left as one wrapping row, the avatar ends up stranded beside a month picker.
+   */
+  .topbar { padding: 9px 12px; gap: 8px 10px; }
+  .topbar .topburger { display: flex; order: 1; }
+  .topbar .spacer { order: 2; }
+  .topbar .usermenu { order: 3; }
+  .topsel {
+    display: flex; order: 4; flex: 0 0 100%;
+    gap: 8px 10px; flex-wrap: wrap; align-items: flex-end;
+  }
+  .topsel > div { flex: 1 1 44%; min-width: 0; }
+  .topbar label { display: block; margin: 0 0 3px; }
+  .topbar select, .topbar input[type="month"] { width: 100%; min-width: 0; }
+  .monthpick { width: 100%; }
+  .monthpick input { flex: 1; min-width: 0; }
+
+  main { padding: 12px; }
+  .pagehead { gap: 10px; margin-bottom: 12px; }
+  .pagehead .ttl { font-size: 17px; }
+  .pagehead .headactions { width: 100%; }
+  .pagehead .headactions .btn { flex: 1; justify-content: center; }
+
+  .card { padding: 14px; }
+  .card .v { font-size: 22px; }
+  .filterbar { padding: 12px; }
+  .filterbar .fgrid { grid-template-columns: 1fr; }
+  .chartbox { padding: 10px; }
+  .empty { padding: 44px 12px; }
+  .ellip { max-width: 150px; }
+  h2.sec { margin: 18px 0 10px; }
+
+  /* dialogs take the screen rather than floating inside a frame of grey */
+  .modal-bg { padding: 10px; }
+  .modal, .modal.wide {
+    max-width: 100%; padding: 18px 16px; border-radius: 14px; max-height: 94vh;
+  }
+  .modal .actions { flex-wrap: wrap; }
+  .modal .actions .btn { flex: 1 1 auto; }
+
+  /* count above, controls below and centred — side by side they collide */
+  .pager { flex-direction: column; align-items: stretch; gap: 10px; }
+  .pager .info { text-align: center; }
+  .pager .controls { justify-content: center; }
+
+  .toast-wrap { top: 10px; left: 10px; right: 10px; max-width: none; }
+
+  /*
+   * The one place the hidden scrollbar comes back.
+   *
+   * These tables run to eleven columns and a phone shows five of them. On a laptop
+   * the rest are one shove of a trackpad away and the missing columns are obvious
+   * from the shape of the row; at this width the table just looks like a narrower
+   * table, and the money columns are the ones off the right edge. A 6px track is
+   * the cheapest way to say there is more.
+   */
+  .tablewrap { scrollbar-width: thin; }
+  .tablewrap::-webkit-scrollbar { display: block; height: 6px; width: 6px; }
+  .tablewrap::-webkit-scrollbar-thumb { background: var(--line); border-radius: 999px; }
+  .tablewrap::-webkit-scrollbar-track { background: transparent; }
+}
+
 @media print {
-  .sidebar, .topbar, .no-print, .toast-wrap { display: none !important; }
+  .sidebar, .topbar, .no-print, .toast-wrap, .navscrim, .pager { display: none !important; }
   .main, .main.wide { margin-left: 0; }
   .card, table, .chartbox { box-shadow: none; }
+}
 }
 
 /* login: the neutral note shown between password and 2FA steps */

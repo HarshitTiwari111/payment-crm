@@ -9,8 +9,49 @@
  * Page numbers collapse around the current page (1 … 4 5 6 … 20) so a long list
  * never grows a second line of buttons.
  */
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { IconPrev, IconNext } from "../icons";
+
+/*
+ * Paging a list this app already holds in full.
+ *
+ * The Payout and Log screens are paged by the server, because those two tables are
+ * the ones that grow without limit. Everything else — accounts, networks, a
+ * payout's own ledger, a report's breakdown — arrives complete in one response, so
+ * paging it is a rendering decision rather than a fetching one, and this hook is
+ * the whole of it.
+ *
+ * It clamps the page rather than trusting it. A filter that shortens the list
+ * underneath you (ticking "show deactivated" off, say) would otherwise leave you
+ * standing on page 4 of a list that now has two, reading an empty table and with no
+ * obvious way back.
+ */
+export function usePaged(rows, initialLimit = 25) {
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(initialLimit);
+
+  const all = rows || [];
+  const total = all.length;
+  const pages = Math.max(1, Math.ceil(total / limit));
+  const safe = Math.min(page, pages);
+
+  useEffect(() => { if (page !== safe) setPage(safe); }, [page, safe]);
+
+  const slice = useMemo(
+    () => all.slice((safe - 1) * limit, safe * limit),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rows, safe, limit]
+  );
+
+  return {
+    rows: slice,
+    pager: {
+      page: safe, pages, total, limit,
+      onPage: setPage,
+      onLimit: (n) => { setLimit(n); setPage(1); },
+    },
+  };
+}
 
 /** Which page numbers to show: always the ends, plus a window around the current. */
 function pageList(page, pages) {

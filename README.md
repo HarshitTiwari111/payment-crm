@@ -48,6 +48,27 @@ too: while viewing as Priya, a new payout can only be filed in Priya's verticals
 7. **Vertical** — verticals and sub-verticals.
 8. **Log** — who signed in, and who changed what (admin only).
 
+Every list on them is paged, and says its own total above the controls — the
+count is the answer to a question people were otherwise scrolling to guess at.
+Payout and Log are paged by the server, because those two grow without limit;
+the rest arrive whole in one response and are paged as they are drawn. A month
+on the calendar and a payout's own ledger each hold their own page, so paging
+one does not move the others.
+
+### On a phone
+
+The sidebar stops being a column and becomes a drawer over the page. Collapsing
+it to icons is the desktop answer and it does not survive the trip down: 68px
+off a 375px screen is a fifth of the width spent on navigation nobody is reading
+while they work through a table, and these tables are the widest thing here. The
+drawer always opens as the full labelled menu, whatever state the desktop rail
+was left in, and closes itself the moment a tab is picked.
+
+The tables keep scrolling sideways rather than folding into cards — a row is a
+payout and the columns are read against each other. The hidden scrollbar comes
+back at this width, because a table that has quietly dropped its money columns
+off the right edge otherwise just looks like a narrower table.
+
 ## Running it
 
 Two processes. The API is on `:4000`, the client on `:5173` and proxies `/api` to it.

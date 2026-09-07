@@ -9,12 +9,13 @@
  * Removing someone deactivates them, keeping their history intact and recoverable,
  * rather than deleting it.
  */
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../api/client";
 import { useApp } from "../context/AppContext";
 import { Loading, Empty, Modal, Field, CheckList } from "../components/ui";
 import { useToast } from "../components/Toast";
 import { useConfirm } from "../components/Confirm";
+import Pager, { usePaged } from "../components/Pager";
 import { IconAdd, IconEdit, IconDelete, IconUndo } from "../icons";
 import { vertsOf } from "../api/format";
 
@@ -135,9 +136,18 @@ export default function Users() {
     }
   };
 
-  if (rows === null) return <Loading />;
+  /*
+   * Both of these sit ABOVE the loading return, because usePaged is a hook and a
+   * hook under a conditional return is only called on some renders — React counts
+   * them in order and would pair this list's page with somebody else's state.
+   */
+  const list = useMemo(
+    () => (rows || []).filter((u) => (showInactive ? true : u.active)),
+    [rows, showInactive]
+  );
+  const { rows: shown, pager } = usePaged(list, 25);
 
-  const list = rows.filter((u) => (showInactive ? true : u.active));
+  if (rows === null) return <Loading />;
 
   return (
     <>
@@ -166,7 +176,7 @@ export default function Users() {
               </tr>
             </thead>
             <tbody>
-              {list.map((u) => (
+              {shown.map((u) => (
                 <tr key={u.id} style={u.active ? undefined : { opacity: 0.55 }}>
                   <td>
                     <b>{u.name}</b>
@@ -199,6 +209,7 @@ export default function Users() {
           </table>
         </div>
       )}
+      <Pager {...pager} noun="account" />
 
       {editing && (
         <Modal

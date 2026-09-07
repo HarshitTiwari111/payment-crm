@@ -38,6 +38,20 @@ export default function Layout({ tab, setTab, children }) {
   const mustEnrol = !!(me && me.mustEnrollTwoFactor);
   useEffect(() => { if (mustEnrol) setEnrol2fa(true); }, [mustEnrol]);
 
+  /*
+   * On a phone the rail is a drawer instead of a column.
+   *
+   * Collapsing it to icons is the desktop answer and it does not survive the trip:
+   * 68px of icons off a 375px screen is a fifth of the width spent on navigation
+   * nobody is looking at while they read a table. So below the CSS breakpoint the
+   * sidebar slides out over the page and this says whether it is out.
+   *
+   * It is one flag for both, deliberately — a drawer left open behind a page you
+   * have already navigated away from is the classic way to lose a tap.
+   */
+  const [navOpen, setNavOpen] = useState(false);
+  useEffect(() => { setNavOpen(false); }, [tab]);
+
   const [collapsed, setCollapsed] = useState(() => {
     try { return localStorage.getItem(COLLAPSE_KEY) === "1"; } catch (e) { return false; }
   });
@@ -81,7 +95,7 @@ export default function Layout({ tab, setTab, children }) {
 
   return (
     <div id="app">
-      <aside className={"sidebar" + (collapsed ? " collapsed" : "")}>
+      <aside className={"sidebar" + (collapsed ? " collapsed" : "") + (navOpen ? " open" : "")}>
         {/* name on the left, collapse control on the right — nothing between them,
             so the name has the whole rail and never truncates */}
         <div className="brand">
@@ -115,8 +129,31 @@ export default function Layout({ tab, setTab, children }) {
         </nav>
       </aside>
 
+      {/* tap anywhere off the drawer to close it — the only way back on a phone,
+          since the page underneath is what you were trying to get to */}
+      {navOpen && <div className="navscrim" onClick={() => setNavOpen(false)} />}
+
       <div className={"main" + (collapsed ? " wide" : "")}>
         <div className="topbar">
+          {/* drawn only on phones — see the breakpoint in app.css */}
+          <button
+            className="burger topburger"
+            onClick={() => setNavOpen(true)}
+            aria-label="Open menu" title="Menu"
+          >
+            <IconMenu size={20} />
+          </button>
+
+          {/*
+            The three selectors, boxed together.
+
+            On a wide screen the box is `display: contents` and changes nothing — they
+            are still direct children of the bar. On a phone it becomes the second row,
+            which a bare flex-wrap could not promise: the avatar and the first selector
+            both fit on line one, so View team kept landing beside the avatar while
+            Vertical and Month sat underneath it.
+          */}
+          <div className="topsel">
           {showViewSel && (
             <div>
               <label>View team</label>
@@ -163,6 +200,8 @@ export default function Layout({ tab, setTab, children }) {
               </div>
             </div>
           )}
+
+          </div>
 
           <div className="spacer" />
           <UserMenu

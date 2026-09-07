@@ -12,6 +12,7 @@ import { api, qs } from "../../api/client";
 import { useApp } from "../../context/AppContext";
 import { Loading, Simple, Kpi, Empty } from "../../components/ui";
 import { BarChart, ds } from "../../components/Chart";
+import Pager, { usePaged } from "../../components/Pager";
 import { money, pct, monthLabel, curMonthStr } from "../../api/format";
 
 export default function PayDashboard() {
@@ -28,6 +29,14 @@ export default function PayDashboard() {
       .catch(() => { if (alive) setD(null); });
     return () => { alive = false; };
   }, [month, verticalFilter, subcatFilter, reloadKey]);
+
+  /*
+   * Paged above the loading return, for the same reason as everywhere else: a hook
+   * that only runs on the renders where data has arrived is a hook React cannot
+   * keep track of. Both read straight off `d`, which is null until it loads.
+   */
+  const nets = usePaged(d && d.byNetwork, 25);
+  const verts = usePaged(d && d.byVertical, 25);
 
   if (!d) return <Loading />;
 
@@ -111,7 +120,7 @@ Every card but the last follows the <b>calendar</b> month — money due or arriv
                 </tr>
               </thead>
               <tbody>
-                {(d.byNetwork || []).map((n) => (
+                {nets.rows.map((n) => (
                   <tr key={n.network}>
                     <td><b>{n.network}</b></td>
                     <td className="num">{n.count}</td>
@@ -125,6 +134,7 @@ Every card but the last follows the <b>calendar</b> month — money due or arriv
               </tbody>
             </table>
           </div>
+          <Pager {...nets.pager} noun="network" />
         </>
       )}
 
@@ -140,7 +150,7 @@ Every card but the last follows the <b>calendar</b> month — money due or arriv
                 </tr>
               </thead>
               <tbody>
-                {(d.byVertical || []).map((v) => (
+                {verts.rows.map((v) => (
                   <tr key={v.vertical}>
                     <td><span className="pill n">{v.vertical}</span></td>
                     <td className="num">{money(v.expected)}</td>
@@ -152,6 +162,7 @@ Every card but the last follows the <b>calendar</b> month — money due or arriv
               </tbody>
             </table>
           </div>
+          <Pager {...verts.pager} noun="vertical" />
         </>
       )}
     </>

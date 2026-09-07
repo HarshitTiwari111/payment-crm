@@ -15,6 +15,7 @@ import { useApp } from "../../context/AppContext";
 import { Modal, Field, Loading } from "../../components/ui";
 import { useToast } from "../../components/Toast";
 import { money, monthLabel } from "../../api/format";
+import Pager, { usePaged } from "../../components/Pager";
 
 /* The sentence for each way a read can fail, in place of the machine word. */
 const FAILURES = {
@@ -40,6 +41,12 @@ export default function SheetImport({ onClose, onImported }) {
   const [preview, setPreview] = useState(null);
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState(null);
+  /*
+   * A sheet is read whole and reported whole — the counts above the table are of
+   * every row, not of this page. Only the drawing is paged, because a preview of
+   * six hundred rows is where this dialog started to crawl.
+   */
+  const { rows: shownRows, pager } = usePaged(preview && preview.results, 50);
 
   useEffect(() => {
     api.get("/api/sheet")
@@ -195,7 +202,7 @@ export default function SheetImport({ onClose, onImported }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {preview.results.map((r) => {
+                    {shownRows.map((r) => {
                       const o = OUTCOME[r.outcome] || OUTCOME.skipped;
                       return (
                         <tr key={r.rowNumber} style={r.outcome === "import" ? undefined : { opacity: 0.65 }}>
@@ -216,6 +223,7 @@ export default function SheetImport({ onClose, onImported }) {
                   </tbody>
                 </table>
               </div>
+              <Pager {...pager} noun="row" />
 
               {/*
                 Said plainly and by name. A run that quietly brought in half a sheet

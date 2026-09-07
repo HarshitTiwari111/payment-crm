@@ -15,6 +15,7 @@ import { Loading, Empty, Modal, Field } from "../components/ui";
 import { useToast } from "../components/Toast";
 import { useConfirm } from "../components/Confirm";
 import { useRegisterPageActions } from "../components/PageAction";
+import Pager, { usePaged } from "../components/Pager";
 import { IconDelete } from "../icons";
 
 export default function Verticals() {
@@ -137,6 +138,9 @@ export default function Verticals() {
     },
   });
 
+  // above the loading return: a hook cannot sit under a conditional one
+  const { rows: shownVerts, pager } = usePaged(verticalOptions, 25);
+
   if (!verticalOptions) return <Loading />;
 
   return (
@@ -155,7 +159,7 @@ export default function Verticals() {
           <table>
             <thead><tr><th>Vertical</th><th>Sub-verticals</th><th className="right">Action</th></tr></thead>
             <tbody>
-              {verticalOptions.map((v) => {
+              {shownVerts.map((v) => {
                 const subs = subcats.filter((s) => s.vertical === v);
                 return (
                   <tr key={v}>
@@ -194,6 +198,7 @@ export default function Verticals() {
           </table>
         </div>
       )}
+      <Pager {...pager} noun="vertical" />
 
       {adding === "vertical" && (
         <Modal

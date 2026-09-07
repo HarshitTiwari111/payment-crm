@@ -10,6 +10,7 @@ import { api, qs } from "../../api/client";
 import { useApp } from "../../context/AppContext";
 import { Loading, Empty, Simple, Seg } from "../../components/ui";
 import { BarChart, LineChart, ds } from "../../components/Chart";
+import Pager, { usePaged } from "../../components/Pager";
 import { money, pct, monthLabel, monthShort, curMonthStr } from "../../api/format";
 
 const VIEWS = [
@@ -131,8 +132,11 @@ function Received({ d, month }) {
 }
 
 function Table({ rows, keyField }) {
+  // before the early return — hooks have to run on every render of this component
+  const { rows: shown, pager } = usePaged(rows, 25);
   if (!rows || !rows.length) return <div className="muted">Nothing to show.</div>;
   return (
+    <>
     <div className="tablewrap">
       <table>
         <thead>
@@ -143,7 +147,7 @@ function Table({ rows, keyField }) {
           </tr>
         </thead>
         <tbody>
-          {rows.map((r) => (
+          {shown.map((r) => (
             <tr key={r[keyField]}>
               <td><b>{r[keyField]}</b></td>
               <td className="num">{money(r.expected)}</td>
@@ -156,11 +160,14 @@ function Table({ rows, keyField }) {
         </tbody>
       </table>
     </div>
+    <Pager {...pager} noun={keyField} />
+    </>
   );
 }
 
 /** Who pays on time, who cuts the most, and how late they usually are. */
 function Networks({ d }) {
+  const { rows: shown, pager } = usePaged(d, 25);
   if (!d || !d.length) return <Empty title="No network history yet." />;
   return (
     <>
@@ -179,7 +186,7 @@ function Networks({ d }) {
             </tr>
           </thead>
           <tbody>
-            {d.map((n) => (
+            {shown.map((n) => (
               <tr key={n.network}>
                 <td><b>{n.network}</b></td>
                 <td className="num">{n.payouts}</td>
@@ -207,12 +214,14 @@ function Networks({ d }) {
           </tbody>
         </table>
       </div>
+      <Pager {...pager} noun="network" />
     </>
   );
 }
 
 /** How each of the last few earned months has filled in. */
 function Trend({ d }) {
+  const { rows: shown, pager } = usePaged(d, 25);
   if (!d || !d.length) return <Empty title="Not enough history yet." />;
   return (
     <>
@@ -238,7 +247,7 @@ function Trend({ d }) {
             </tr>
           </thead>
           <tbody>
-            {d.map((x) => (
+            {shown.map((x) => (
               <tr key={x.month}>
                 <td><b>{monthLabel(x.month)}</b></td>
                 <td className="num">{x.expected ? money(x.expected) : <span className="muted">—</span>}</td>
@@ -258,6 +267,7 @@ function Trend({ d }) {
           </tbody>
         </table>
       </div>
+      <Pager {...pager} noun="month" />
     </>
   );
 }

@@ -15,6 +15,7 @@ import { Loading, Empty } from "../../components/ui";
 import { IconWarn } from "../../icons";
 import { money, monthLabel, dateLabel, curMonthStr, addMonths } from "../../api/format";
 import { StatusPill } from "./shared";
+import Pager, { usePaged } from "../../components/Pager";
 
 const PRESETS = [
   { key: "1", label: "This month", months: 1 },
@@ -23,6 +24,51 @@ const PRESETS = [
   { key: "12", label: "Next 12 months", months: 12 },
 ];
 
+/*
+ * One month's due payments.
+ *
+ * Its own component so it can hold its own page — the calendar draws a table per
+ * month, and a single page number shared across them would move all of them at
+ * once. A month with three payments and a month with two hundred are answering
+ * different questions and are read separately.
+ */
+function GroupTable({ items }) {
+  const { rows, pager } = usePaged(items, 25);
+  return (
+    <>
+    <div className="tablewrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Due</th><th>Network</th><th>Campaign</th><th>Vertical</th>
+            <th>Earned</th><th>Amount due</th><th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((p) => (
+            <tr key={p.id}>
+              <td style={{ whiteSpace: "nowrap", color: p.isOverdue ? "var(--red)" : undefined }}>
+                {dateLabel(p.expectedDate)}
+              </td>
+              <td><b>{p.network}</b></td>
+              <td className="muted">{p.campaign || "—"}</td>
+              <td>{p.vertical ? <span className="pill n">{p.vertical}</span> : "—"}</td>
+              <td className="muted" style={{ whiteSpace: "nowrap" }}>{monthLabel(p.earnedMonth)}</td>
+              <td style={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{money(p.pending, p.currency)}</td>
+              <td>
+                <span className="statuscell"><StatusPill status={p.status} isOverdue={p.isOverdue} /></span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+      {/* flat inside the month card — a bordered panel within a bordered panel
+          reads as a second table rather than as the footer of this one */}
+      <div className="pagerinset"><Pager {...pager} noun="payment" /></div>
+    </>
+  );
+}
 export default function PayCalendar() {
   const { verticalFilter, subcatFilter, reloadKey } = useApp();
   const [groups, setGroups] = useState(null);
@@ -123,33 +169,7 @@ export default function PayCalendar() {
                 {g.items.length} payment(s) · <b>{money(g.total)}</b>
               </span>
             </div>
-            <div className="tablewrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Due</th><th>Network</th><th>Campaign</th><th>Vertical</th>
-                    <th>Earned</th><th>Amount due</th><th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {g.items.map((p) => (
-                    <tr key={p.id}>
-                      <td style={{ whiteSpace: "nowrap", color: p.isOverdue ? "var(--red)" : undefined }}>
-                        {dateLabel(p.expectedDate)}
-                      </td>
-                      <td><b>{p.network}</b></td>
-                      <td className="muted">{p.campaign || "—"}</td>
-                      <td>{p.vertical ? <span className="pill n">{p.vertical}</span> : "—"}</td>
-                      <td className="muted" style={{ whiteSpace: "nowrap" }}>{monthLabel(p.earnedMonth)}</td>
-                      <td style={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{money(p.pending, p.currency)}</td>
-                      <td>
-                        <span className="statuscell"><StatusPill status={p.status} isOverdue={p.isOverdue} /></span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <GroupTable items={g.items} />
           </div>
         );
       })}
