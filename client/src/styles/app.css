@@ -893,7 +893,6 @@ td input, td select { width: 100%; }
   .main, .main.wide { margin-left: 0; }
   .card, table, .chartbox { box-shadow: none; }
 }
-}
 
 /* login: the neutral note shown between password and 2FA steps */
 .login-note {
